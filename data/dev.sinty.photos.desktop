@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Photos
+Comment=View and manage your photos
+Exec=singularity-photos %f
+Icon=dev.sinty.photos
+Terminal=false
+Categories=Graphics;Photography;
+MimeType=image/jpeg;image/png;image/gif;image/webp;image/svg+xml;image/tiff;image/bmp;image/heic;image/heif;image/avif;image/x-portable-pixmap;image/x-portable-bitmap;image/vnd.microsoft.icon;
+StartupNotify=true
+StartupWMClass=dev.sinty.photos

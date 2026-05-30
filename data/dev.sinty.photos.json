@@ -1,0 +1,9 @@
+{
+  "app-id": "dev.sinty.photos",
+  "name": "Photos",
+  "description": "Photo viewer and manager",
+  "icon": "image-x-generic-symbolic",
+  "settings": [
+    { "key": "thumbnail-size", "title": "Thumbnail size", "type": "range", "min": 80, "max": 240, "step": 20 }
+  ]
+}

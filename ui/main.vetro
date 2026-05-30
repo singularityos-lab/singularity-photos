@@ -1,0 +1,13 @@
+Template(class: "SingularityAppsPhotosWindow", parent: "SingularityWidgetsWindow") {
+    HBox(id: "photos_ui_root", spacing: 0) {
+        AppSidebar(id: "sidebar_scroll")
+
+        VBox(id: "content_box", spacing: 0) {
+            VBox(id: "search_host", spacing: 0)
+
+            Overlay(id: "content_overlay", hexpand: true, vexpand: true) {
+                ScrolledWindow(id: "grid_scroll", hexpand: true, vexpand: true)
+            }
+        }
+    }
+}

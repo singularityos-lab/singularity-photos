@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="dev.sinty.photos" path="/dev/sinty/photos/">
+    <key name="thumbnail-size" type="i">
+      <default>160</default>
+      <summary>Thumbnail size in pixels</summary>
+    </key>
+    <key name="favorites" type="as">
+      <default>[]</default>
+      <summary>List of favorited photo URIs</summary>
+    </key>
+    <key name="library-path" type="s">
+      <default>'Pictures'</default>
+      <summary>Library folder name relative to home</summary>
+    </key>
+    <key name="sidebar-view" type="s">
+      <default>'library'</default>
+      <summary>Current sidebar selection</summary>
+    </key>
+  </schema>
+</schemalist>

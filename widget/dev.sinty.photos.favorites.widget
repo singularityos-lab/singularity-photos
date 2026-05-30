@@ -1,0 +1,8 @@
+[Widget]
+Id=photos.favorites
+ProviderId=dev.sinty.photos
+Name=Photos
+IconName=image-x-generic-symbolic
+Sizes=1x1;1x2;2x2;4x2;4x4;6x4
+Module=libsingularity-photos-widget.so
+ModuleSymbol=singularity_photos_widget_new

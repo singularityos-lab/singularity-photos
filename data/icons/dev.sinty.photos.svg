@@ -1,0 +1,79 @@
+<svg width="236" height="236" viewBox="0 0 236 236" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip_photos)">
+
+<!-- Camera body shadow -->
+<path d="M14 82 Q14 70 26 70 L78 70 L90 52 L146 52 L158 70 L210 70 Q222 70 222 82 L222 194 Q222 206 210 206 L26 206 Q14 206 14 194 Z" fill="rgba(0,0,0,0.3)" transform="translate(3,4)"/>
+
+<!-- Camera body back layer (3D depth) -->
+<path d="M12 82 Q12 70 24 70 L76 70 L88 52 L148 52 L160 70 L212 70 Q224 70 224 82 L224 194 Q224 206 212 206 L24 206 Q12 206 12 194 Z" fill="#831843"/>
+
+<!-- Camera body middle layer -->
+<path d="M10 80 Q10 68 22 68 L76 68 L88 50 L148 50 L160 68 L214 68 Q226 68 226 80 L226 192 Q226 204 214 204 L22 204 Q10 204 10 192 Z" fill="#9d174d"/>
+
+<!-- Camera body main -->
+<path d="M8 78 Q8 66 20 66 L76 66 L88 48 L148 48 L160 66 L216 66 Q228 66 228 78 L228 190 Q228 202 216 202 L20 202 Q8 202 8 190 Z" fill="url(#body_photos)"/>
+
+<!-- Light bloom -->
+<mask id="mask_photos" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="8" y="48" width="220" height="154">
+<path d="M8 78 Q8 66 20 66 L76 66 L88 48 L148 48 L160 66 L216 66 Q228 66 228 78 L228 190 Q228 202 216 202 L20 202 Q8 202 8 190 Z" fill="white"/>
+</mask>
+<g mask="url(#mask_photos)">
+<radialGradient id="bloom_photos" cx="60" cy="70" r="130" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="white" stop-opacity="0.22"/>
+<stop offset="100%" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+<path d="M8 78 Q8 66 20 66 L76 66 L88 48 L148 48 L160 66 L216 66 Q228 66 228 78 L228 190 Q228 202 216 202 L20 202 Q8 202 8 190 Z" fill="url(#bloom_photos)"/>
+</g>
+
+<!-- Lens ring outer -->
+<circle cx="118" cy="134" r="54" fill="url(#lens_outer_photos)"/>
+<!-- Lens ring middle -->
+<circle cx="118" cy="134" r="44" fill="url(#lens_mid_photos)"/>
+<!-- Lens glass -->
+<circle cx="118" cy="134" r="36" fill="url(#lens_inner_photos)"/>
+<!-- Lens inner shadow -->
+<circle cx="118" cy="134" r="36" fill="url(#lens_shadow_photos)"/>
+<!-- Lens highlight -->
+<ellipse cx="107" cy="123" rx="10" ry="7" fill="rgba(255,255,255,0.25)" transform="rotate(-30 107 123)"/>
+
+<!-- Viewfinder (top-right of body) -->
+<rect x="168" y="76" width="36" height="24" rx="4" fill="rgba(0,0,0,0.4)"/>
+<rect x="170" y="78" width="32" height="20" rx="3" fill="url(#vf_photos)"/>
+
+<!-- Flash (top-left) -->
+<rect x="28" y="78" width="20" height="12" rx="3" fill="rgba(0,0,0,0.3)"/>
+<rect x="29" y="79" width="18" height="10" rx="2" fill="rgba(255,220,100,0.5)"/>
+
+</g>
+<defs>
+<linearGradient id="body_photos" x1="118" y1="48" x2="118" y2="202" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="#be185d"/>
+<stop offset="50%" stop-color="#9d174d"/>
+<stop offset="100%" stop-color="#831843"/>
+</linearGradient>
+<radialGradient id="lens_outer_photos" cx="118" cy="134" r="54" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="#4a1942"/>
+<stop offset="100%" stop-color="#2d1030"/>
+</radialGradient>
+<radialGradient id="lens_mid_photos" cx="118" cy="134" r="44" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="#1e0a1e"/>
+<stop offset="100%" stop-color="#0d0612"/>
+</radialGradient>
+<radialGradient id="lens_inner_photos" cx="118" cy="134" r="36" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="#0f172a"/>
+<stop offset="60%" stop-color="#0a0f1e"/>
+<stop offset="100%" stop-color="#050810"/>
+</radialGradient>
+<radialGradient id="lens_shadow_photos" cx="130" cy="145" r="36" gradientUnits="userSpaceOnUse">
+<stop offset="60%" stop-color="transparent"/>
+<stop offset="100%" stop-color="rgba(0,0,0,0.5)"/>
+</radialGradient>
+<linearGradient id="vf_photos" x1="186" y1="78" x2="186" y2="98" gradientUnits="userSpaceOnUse">
+<stop offset="0%" stop-color="#0f172a"/>
+<stop offset="100%" stop-color="#050810"/>
+</linearGradient>
+<clipPath id="clip_photos">
+<rect width="236" height="236" fill="white"/>
+</clipPath>
+</defs>
+</svg>
