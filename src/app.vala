@@ -153,26 +153,9 @@ namespace Singularity.Apps.Photos {
         // Store view_id on the button widget so the closure reads it safely
 
         private void add_sidebar_item(Box parent, string icon_name, string label_text, string view_id) {
-            var btn = new Button();
-            btn.add_css_class("flat");
-            btn.halign = Align.FILL;
-
-            var row = new Box(Orientation.HORIZONTAL, 8);
-            row.margin_start  = 4;
-            row.margin_end    = 4;
-            row.margin_top    = 3;
-            row.margin_bottom = 3;
-            var img = new Image.from_icon_name(icon_name);
-            img.pixel_size = 16;
-            var lbl = new Label(label_text);
-            lbl.halign = Align.START;
-            lbl.hexpand = true;
-            row.append(img);
-            row.append(lbl);
-            btn.set_child(row);
-
+            var btn = new Singularity.Widgets.SidebarRow(icon_name, label_text);
             if (current_view == view_id) {
-                btn.add_css_class("sidebar-nav-active");
+                btn.set_active(true);
             }
 
             btn.set_data<string>("view-id", view_id);
@@ -196,71 +179,52 @@ namespace Singularity.Apps.Photos {
 
         // ── Toolbar ────────────────────────────────────────────────────────────
 
-        // Floating bubble controls (Leafs-style) instead of a toolbar:
-        // settings · search-toggle · zoom − / + · import · close.
+        // Grid-only bubbles are hidden while the single-photo viewer is open.
+        private Button? _sidebar_bubble = null;
+        private Button? _search_bubble  = null;
+        private Button? _import_bubble  = null;
+        private double  _viewer_zoom    = 1.0;
+
         private void setup_toolbar() {
-            var hover = main_window.hover;
-
-            // Drag grip to move the window (Leafs / browser style).
-            var grip_btn = new Button.from_icon_name("list-drag-handle-symbolic");
-            grip_btn.tooltip_text = "Drag Window";
-            var grip_drag = new Gtk.GestureDrag();
-            grip_drag.drag_begin.connect((x, y) => {
-                var surface = main_window.get_surface();
-                if (surface is Gdk.Toplevel) {
-                    ((Gdk.Toplevel) surface).begin_move(
-                        grip_drag.get_device(), 1, x, y, Gdk.CURRENT_TIME);
-                }
-            });
-            grip_btn.add_controller(grip_drag);
-            hover.add_control(grip_btn);
-
-            // Toggle the sidebar (Store style).
-            var sidebar_btn = new Button.from_icon_name("sidebar-show-symbolic");
-            sidebar_btn.tooltip_text = "Toggle Sidebar";
-            sidebar_btn.clicked.connect(() => {
+            _sidebar_bubble = main_window.add_bubble_icon("sidebar-show-symbolic", "Toggle Sidebar", () => {
                 main_window.set_sidebar_visible(!main_window.get_sidebar_visible());
             });
-            hover.add_control(sidebar_btn);
+            _search_bubble  = main_window.add_bubble_icon("system-search-symbolic", "Search", () => toggle_search());
+            main_window.add_bubble_icon("zoom-out-symbolic", "Zoom out", () => adjust_zoom(-20));
+            main_window.add_bubble_icon("zoom-in-symbolic",  "Zoom in",  () => adjust_zoom(20));
+            _import_bubble  = main_window.add_bubble_icon("document-save-symbolic", "Import photos", () => on_import());
+        }
 
-            hover.add_separator();
-
-            var search_btn = new Button.from_icon_name("system-search-symbolic");
-            search_btn.tooltip_text = "Search";
-            search_btn.clicked.connect(() => toggle_search());
-            hover.add_control(search_btn);
-
-            hover.add_separator();
-
-            var zoom_out = new Button.from_icon_name("zoom-out-symbolic");
-            zoom_out.tooltip_text = "Smaller thumbnails";
-            zoom_out.clicked.connect(() => adjust_zoom(-20));
-            hover.add_control(zoom_out);
-
-            var zoom_in = new Button.from_icon_name("zoom-in-symbolic");
-            zoom_in.tooltip_text = "Larger thumbnails";
-            zoom_in.clicked.connect(() => adjust_zoom(20));
-            hover.add_control(zoom_in);
-
-            hover.add_separator();
-
-            var import_btn = new Button.from_icon_name("document-save-symbolic");
-            import_btn.tooltip_text = "Import photos";
-            import_btn.clicked.connect(() => on_import());
-            hover.add_control(import_btn);
-
-            hover.add_separator();
-
-            var close_btn = new Button.from_icon_name("window-close-symbolic");
-            close_btn.tooltip_text = "Close";
-            close_btn.clicked.connect(() => main_window.close());
-            hover.add_control(close_btn);
+        private void update_bubbles_for_viewer(bool in_viewer) {
+            if (_sidebar_bubble != null) _sidebar_bubble.visible = !in_viewer;
+            if (_search_bubble  != null) _search_bubble.visible  = !in_viewer;
+            if (_import_bubble  != null) _import_bubble.visible  = !in_viewer;
         }
 
         private void adjust_zoom(int delta) {
+            if (full_viewer != null && full_viewer.visible) {
+                _viewer_zoom = (_viewer_zoom + delta / 100.0).clamp(0.20, 8.0);
+                _apply_viewer_zoom();
+                return;
+            }
             thumb_size = (thumb_size + delta).clamp(80, 240);
             settings.set_int("thumbnail-size", thumb_size);
             load_photos();
+        }
+
+        private void _apply_viewer_zoom() {
+            if (viewer_picture == null) return;
+            // Drive zoom through the Picture's paintable size hint: at
+            // 1.0 the picture fits naturally (CONTAIN); above 1.0 we
+            // request a larger size so the surrounding ScrolledWindow
+            // (if any) allows panning, otherwise the image scales up
+            // and overflows the allocation.
+            int base_w = viewer_picture.get_width();
+            int base_h = viewer_picture.get_height();
+            if (base_w <= 0 || base_h <= 0) return;
+            viewer_picture.set_size_request(
+                (int)(base_w * _viewer_zoom),
+                (int)(base_h * _viewer_zoom));
         }
 
         private void toggle_search() {
@@ -537,13 +501,16 @@ namespace Singularity.Apps.Photos {
         private void show_viewer(int index) {
             viewer_index = index;
             viewer_rotation = 0;
+            _viewer_zoom = 1.0;
             full_viewer.visible = true;
+            update_bubbles_for_viewer(true);
             load_viewer_photo();
             main_window.grab_focus();
         }
 
         private void hide_viewer() {
             if (full_viewer != null) full_viewer.visible = false;
+            update_bubbles_for_viewer(false);
         }
 
         private void load_viewer_photo() {

@@ -21,25 +21,16 @@ namespace Singularity.Apps {
         public Box             search_host;
         public Overlay         content_overlay;
         public ScrolledWindow  grid_scroll;
-        public HoverControls   hover;
 
         public PhotosWindow(Gtk.Application app) {
             Object(application: app);
             set_title("Photos");
             set_default_size(1100, 700);
 
-            // No toolbar - bubble controls instead. We supply our own close
-            // bubble, so suppress the base flat close button.
-            flat = true;
-            show_close = false;
-
-            // Sidebar (populated by the app), placed in the base window's
-            // sidebar slot.
             sidebar_scroll = new AppSidebar();
             set_sidebar(sidebar_scroll);
             set_sidebar_visible(true);
 
-            // Content column: search bar host on top, photo grid below.
             content_box = new Box(Orientation.VERTICAL, 0);
             content_box.hexpand = true;
             content_box.vexpand = true;
@@ -57,10 +48,7 @@ namespace Singularity.Apps {
             content_overlay.set_child(grid_scroll);
             content_box.append(content_overlay);
 
-            // Floating bubble controls over the content.
-            hover = new HoverControls();
-            hover.set_content(content_box);
-            set_content(hover);
+            set_content(content_box);
         }
     }
 }
