@@ -456,19 +456,19 @@ namespace Singularity.Apps.Photos {
 
             var rot_left = new Button.from_icon_name("object-rotate-left-symbolic");
             rot_left.add_css_class("flat");
-            rot_left.tooltip_text = "Rotate Left";
+            rot_left.tooltip_text = _("Rotate Left");
             rot_left.clicked.connect(() => rotate_current(-90));
             controls_bar.append(rot_left);
 
             var prev_btn = new Button.from_icon_name("go-previous-symbolic");
             prev_btn.add_css_class("flat");
-            prev_btn.tooltip_text = "Previous (Left)";
+            prev_btn.tooltip_text = _("Previous (Left)");
             prev_btn.clicked.connect(() => navigate_viewer(-1));
             controls_bar.append(prev_btn);
 
             viewer_fav_btn = new Button.from_icon_name("non-starred-symbolic");
             viewer_fav_btn.add_css_class("flat");
-            viewer_fav_btn.tooltip_text = "Favorite";
+            viewer_fav_btn.tooltip_text = _("Favorite");
             viewer_fav_btn.clicked.connect(() => toggle_favorite_current());
             controls_bar.append(viewer_fav_btn);
 
@@ -486,13 +486,13 @@ namespace Singularity.Apps.Photos {
 
             var next_btn = new Button.from_icon_name("go-next-symbolic");
             next_btn.add_css_class("flat");
-            next_btn.tooltip_text = "Next (Right)";
+            next_btn.tooltip_text = _("Next (Right)");
             next_btn.clicked.connect(() => navigate_viewer(1));
             controls_bar.append(next_btn);
 
             var rot_right = new Button.from_icon_name("object-rotate-right-symbolic");
             rot_right.add_css_class("flat");
-            rot_right.tooltip_text = "Rotate Right";
+            rot_right.tooltip_text = _("Rotate Right");
             rot_right.clicked.connect(() => rotate_current(90));
             controls_bar.append(rot_right);
 

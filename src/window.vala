@@ -24,7 +24,7 @@ namespace Singularity.Apps {
 
         public PhotosWindow(Gtk.Application app) {
             Object(application: app);
-            set_title("Photos");
+            set_title(_("Photos"));
             set_default_size(1100, 700);
 
             sidebar_scroll = new AppSidebar();
