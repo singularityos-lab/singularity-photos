@@ -69,6 +69,7 @@ namespace Singularity.Apps.Photos {
             var menu = new GLib.Menu();
             var file_menu = new GLib.Menu();
             file_menu.append("Import Photos…", "app.import");
+            file_menu.append("Settings", "app.settings");
             file_menu.append("Quit", "app.quit");
             menu.append_submenu("File", file_menu);
             set_menubar(menu);
@@ -76,6 +77,18 @@ namespace Singularity.Apps.Photos {
             var act_import = new SimpleAction("import", null);
             act_import.activate.connect(() => on_import());
             add_action(act_import);
+
+            var act_settings = new SimpleAction("settings", null);
+            act_settings.activate.connect(() => {
+                try {
+                    Singularity.Shell.ShellService shell = Bus.get_proxy_sync(
+                        BusType.SESSION, "dev.sinty.desktop", "/dev/sinty/Shell");
+                    shell.open_app_settings("dev.sinty.photos");
+                } catch (Error e) {
+                    warning("Failed to open settings: %s", e.message);
+                }
+            });
+            add_action(act_settings);
 
             var act_quit = new SimpleAction("quit", null);
             act_quit.activate.connect(() => quit());
