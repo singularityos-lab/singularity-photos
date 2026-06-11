@@ -128,12 +128,20 @@ namespace Singularity.Apps.Photos {
         protected override void open(GLib.File[] files, string hint) {
             activate();
             if (files.length == 0) return;
-            var parent = files[0].get_parent();
+            var target = files[0];
+            var parent = target.get_parent();
             if (parent != null) library_folder = parent;
+            // Force a state where the opened file is actually listed: an
+            // already-running window could be on Favorites, Trash, or a search,
+            // all of which filter the store and would hide the file, so the
+            // window only focused without showing it.
+            current_view = "library";
+            search_query = "";
             load_photos();
+            string target_path = target.get_path();
             for (uint i = 0; i < photo_store.get_n_items(); i++) {
                 var pi = (PhotoItem) photo_store.get_item(i);
-                if (pi.file.equal(files[0])) {
+                if (pi.file.equal(target) || pi.file.get_path() == target_path) {
                     show_viewer((int) i);
                     return;
                 }
