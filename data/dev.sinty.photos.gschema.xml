@@ -17,5 +17,81 @@
       <default>'library'</default>
       <summary>Current sidebar selection</summary>
     </key>
+    <key name="show-filter-bar" type="b">
+      <default>false</default>
+      <summary>Show the library filter bar</summary>
+    </key>
+    <key name="show-info-panel" type="b">
+      <default>false</default>
+      <summary>Show the metadata panel</summary>
+    </key>
+    <key name="library-sort" type="s">
+      <default>'captured'</default>
+      <summary>Library sort order</summary>
+    </key>
+    <key name="library-sort-ascending" type="b">
+      <default>false</default>
+      <summary>Sort the library in ascending order</summary>
+    </key>
+    <key name="extra-folders" type="as">
+      <default>[]</default>
+      <summary>Folders added to the library besides the Pictures folder</summary>
+    </key>
+    <key name="import-destination" type="s">
+      <default>''</default>
+      <summary>Folder that receives imported photos, empty for the library folder</summary>
+    </key>
+    <key name="import-rename-template" type="s">
+      <default>'{original}'</default>
+      <summary>File name template for imported photos</summary>
+    </key>
+    <key name="import-structure" type="s">
+      <default>'date'</default>
+      <summary>Folder structure for imported photos</summary>
+    </key>
+    <key name="import-mode" type="s">
+      <default>'copy'</default>
+      <summary>How photos are imported: copy, move or add</summary>
+    </key>
+    <key name="metadata-presets" type="s">
+      <default>'[]'</default>
+      <summary>Saved metadata presets as JSON</summary>
+    </key>
+    <key name="map-enabled" type="b">
+      <default>false</default>
+      <summary>Allow map tiles to be downloaded for the map view</summary>
+    </key>
+    <key name="people-enabled" type="b">
+      <default>false</default>
+      <summary>Detect and group faces on this device</summary>
+    </key>
+    <key name="collapse-stacks" type="b">
+      <default>true</default>
+      <summary>Show stacks collapsed in the grid</summary>
+    </key>
+    <key name="write-xmp" type="b">
+      <default>true</default>
+      <summary>Write edits and metadata to XMP sidecar files</summary>
+    </key>
+    <key name="develop-panels" type="as">
+      <default>[]</default>
+      <summary>Advanced develop panels kept open</summary>
+    </key>
+    <key name="display-profile" type="s">
+      <default>'auto'</default>
+      <summary>Color profile of the display used to show photos</summary>
+    </key>
+    <key name="proof-profile" type="s">
+      <default>''</default>
+      <summary>Profile used for soft proofing</summary>
+    </key>
+    <key name="proof-intent" type="s">
+      <default>'perceptual'</default>
+      <summary>Rendering intent used for soft proofing</summary>
+    </key>
+    <key name="raw-sharpening" type="b">
+      <default>true</default>
+      <summary>Apply default capture sharpening to raw photos</summary>
+    </key>
   </schema>
 </schemalist>

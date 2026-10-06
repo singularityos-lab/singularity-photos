@@ -2,5 +2,12 @@
 <gresources>
   <gresource prefix="/dev/sinty/photos">
     <file preprocess="xml-stripblanks">ui/main.ui</file>
+    <file alias="icons/scalable/actions/singularity-photos-brush-symbolic.svg" preprocess="xml-stripblanks">data/icons/symbolic/singularity-photos-brush-symbolic.svg</file>
+    <file alias="icons/scalable/actions/singularity-photos-heal-symbolic.svg" preprocess="xml-stripblanks">data/icons/symbolic/singularity-photos-heal-symbolic.svg</file>
+    <file alias="icons/scalable/actions/singularity-photos-history-symbolic.svg" preprocess="xml-stripblanks">data/icons/symbolic/singularity-photos-history-symbolic.svg</file>
+    <file alias="icons/scalable/actions/singularity-photos-invert-symbolic.svg" preprocess="xml-stripblanks">data/icons/symbolic/singularity-photos-invert-symbolic.svg</file>
+    <file alias="icons/scalable/actions/singularity-photos-linear-symbolic.svg" preprocess="xml-stripblanks">data/icons/symbolic/singularity-photos-linear-symbolic.svg</file>
+    <file alias="icons/scalable/actions/singularity-photos-mask-symbolic.svg" preprocess="xml-stripblanks">data/icons/symbolic/singularity-photos-mask-symbolic.svg</file>
+    <file alias="icons/scalable/actions/singularity-photos-radial-symbolic.svg" preprocess="xml-stripblanks">data/icons/symbolic/singularity-photos-radial-symbolic.svg</file>
   </gresource>
 </gresources>

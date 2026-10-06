@@ -10,3 +10,12 @@ Categories=Graphics;Photography;
 MimeType=image/jpeg;image/png;image/gif;image/webp;image/svg+xml;image/tiff;image/bmp;image/heic;image/heif;image/avif;image/x-portable-pixmap;image/x-portable-bitmap;image/vnd.microsoft.icon;
 StartupNotify=true
 StartupWMClass=dev.sinty.photos
+Actions=favorites;import;
+
+[Desktop Action favorites]
+Name=Favorites
+Exec=singularity-photos --favorites
+
+[Desktop Action import]
+Name=Import Photos
+Exec=singularity-photos --import

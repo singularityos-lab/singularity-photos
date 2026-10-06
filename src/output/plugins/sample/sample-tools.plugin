@@ -1,0 +1,8 @@
+[Plugin]
+Module=sample-tools
+Name=Sample Photo Tools
+Description=A warm film filter, an export destination and file facts for the info panel
+Authors=Singularity Team
+Copyright=Copyright © 2026 Singularity Team
+Website=https://sinty.dev
+X-Singularity-App=dev.sinty.photos

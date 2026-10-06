@@ -1,0 +1,8 @@
+[Plugin]
+Module=photos-wallpapers
+Name=Photos Favorites as Wallpaper
+Description=Adds your favorite photos to Wallpaper Source as a collection you can rotate
+Authors=Singularity Team
+Copyright=Copyright © 2025 Singularity Team
+Website=https://sinty.dev
+X-Singularity-App=dev.sinty.photos

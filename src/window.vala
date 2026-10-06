@@ -21,6 +21,9 @@ namespace Singularity.Apps {
         public Box             search_host;
         public Overlay         content_overlay;
         public ScrolledWindow  grid_scroll;
+        public Box             side_host;
+        public Box             stage_row;
+        public Photos.MediaBin media_bin;
 
         public PhotosWindow(Gtk.Application app) {
             Object(application: app);
@@ -35,18 +38,17 @@ namespace Singularity.Apps {
             content_box.hexpand = true;
             content_box.vexpand = true;
 
-            search_host = new Box(Orientation.VERTICAL, 0);
-            content_box.append(search_host);
-
-            content_overlay = new Overlay();
-            content_overlay.hexpand = true;
-            content_overlay.vexpand = true;
-
-            grid_scroll = new ScrolledWindow();
-            grid_scroll.hexpand = true;
-            grid_scroll.vexpand = true;
-            content_overlay.set_child(grid_scroll);
-            content_box.append(content_overlay);
+            media_bin = new Photos.MediaBin();
+            search_host = media_bin.filter_host;
+            content_overlay = media_bin.overlay;
+            grid_scroll = media_bin.scroller;
+            stage_row = new Box(Orientation.HORIZONTAL, 0);
+            stage_row.hexpand = true;
+            stage_row.vexpand = true;
+            stage_row.append(media_bin);
+            side_host = new Box(Orientation.HORIZONTAL, 0);
+            stage_row.append(side_host);
+            content_box.append(stage_row);
 
             set_content(content_box);
         }

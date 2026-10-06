@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/dev/sinty/photos/retouch/icons/scalable/actions">
+    <file alias="singularity-retouch-clone-symbolic.svg">icons/singularity-retouch-clone-symbolic.svg</file>
+    <file alias="singularity-retouch-heal-symbolic.svg">icons/singularity-retouch-heal-symbolic.svg</file>
+    <file alias="singularity-retouch-patch-symbolic.svg">icons/singularity-retouch-patch-symbolic.svg</file>
+    <file alias="singularity-retouch-liquify-symbolic.svg">icons/singularity-retouch-liquify-symbolic.svg</file>
+    <file alias="singularity-retouch-transform-symbolic.svg">icons/singularity-retouch-transform-symbolic.svg</file>
+    <file alias="singularity-retouch-layer-symbolic.svg">icons/singularity-retouch-layer-symbolic.svg</file>
+    <file alias="singularity-retouch-mask-symbolic.svg">icons/singularity-retouch-mask-symbolic.svg</file>
+    <file alias="singularity-retouch-eraser-symbolic.svg">icons/singularity-retouch-eraser-symbolic.svg</file>
+  </gresource>
+</gresources>

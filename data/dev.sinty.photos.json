@@ -1,9 +1,86 @@
 {
-  "app-id": "dev.sinty.photos",
-  "name": "Photos",
-  "description": "Photo viewer and manager",
-  "icon": "image-x-generic-symbolic",
-  "settings": [
-    { "key": "thumbnail-size", "title": "Thumbnail size", "type": "range", "min": 80, "max": 240, "step": 20 }
-  ]
+    "schema-id": "dev.sinty.photos",
+    "settings": [
+        {
+            "key": "thumbnail-size",
+            "label": "Thumbnail Size",
+            "subtitle": "Size of the photos in the library grid",
+            "type": "int",
+            "widget": "slider",
+            "min": 80,
+            "max": 240
+        },
+        {
+            "key": "write-xmp",
+            "label": "Write XMP Sidecars",
+            "subtitle": "Save edits, ratings and keywords next to each photo so other programs can read them",
+            "type": "boolean",
+            "widget": "switch"
+        },
+        {
+            "key": "raw-sharpening",
+            "label": "Sharpen Raw Photos",
+            "subtitle": "Apply light capture sharpening when a raw photo is opened for the first time",
+            "type": "boolean",
+            "widget": "switch"
+        },
+        {
+            "key": "display-profile",
+            "label": "Display Profile",
+            "subtitle": "Color profile used to show photos on this screen",
+            "type": "string",
+            "widget": "combo",
+            "options": [
+                { "id": "auto", "label": "Automatic" },
+                { "id": "srgb", "label": "sRGB" },
+                { "id": "display-p3", "label": "Display P3" },
+                { "id": "adobe-rgb", "label": "Adobe RGB (1998)" }
+            ]
+        },
+        {
+            "key": "import-mode",
+            "label": "Import Mode",
+            "subtitle": "What happens to photos you import",
+            "type": "string",
+            "widget": "combo",
+            "options": [
+                { "id": "copy", "label": "Copy into the Library" },
+                { "id": "move", "label": "Move into the Library" },
+                { "id": "add", "label": "Add Where They Are" }
+            ]
+        },
+        {
+            "key": "import-structure",
+            "label": "Import Folders",
+            "subtitle": "How imported photos are organized in the library folder",
+            "type": "string",
+            "widget": "combo",
+            "options": [
+                { "id": "date", "label": "By Date" },
+                { "id": "month", "label": "By Month" },
+                { "id": "flat", "label": "In One Folder" }
+            ]
+        },
+        {
+            "key": "collapse-stacks",
+            "label": "Collapse Stacks",
+            "subtitle": "Show only the top photo of each stack in the library",
+            "type": "boolean",
+            "widget": "switch"
+        },
+        {
+            "key": "map-enabled",
+            "label": "Map",
+            "subtitle": "Download map tiles to show where photos were taken",
+            "type": "boolean",
+            "widget": "switch"
+        },
+        {
+            "key": "people-enabled",
+            "label": "People",
+            "subtitle": "Find and group faces on this device, nothing is sent over the network",
+            "type": "boolean",
+            "widget": "switch"
+        }
+    ]
 }
