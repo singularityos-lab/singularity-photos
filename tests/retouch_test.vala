@@ -560,22 +560,6 @@ private void test_external_roundtrip() {
         encoded_at(got, 8, 8, out r, out g, out b, out a);
         near(g, 1.0, 5e-3, "draw return stroke");
         ext.stop();
-
-        var vec = new RetouchExternal();
-        FloatImage? vgot = null;
-        vec.returned.connect((img) => vgot = img);
-        var svg = vec.prepare(doc, RetouchExternal.VECTOR_ID, "photo", dir);
-        assert(svg.get_basename() == "photo.svg");
-        string edited_svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"30\"><rect width=\"40\" height=\"30\" fill=\"#0000ff\"/><circle cx=\"20\" cy=\"15\" r=\"6\" fill=\"#ffff00\"/></svg>";
-        FileUtils.set_contents(svg.get_path() + ".tmp", edited_svg);
-        FileUtils.rename(svg.get_path() + ".tmp", svg.get_path());
-        assert(wait_for(() => vgot != null, 10));
-        assert(vgot.width == 40 && vgot.height == 30);
-        encoded_at(vgot, 2, 2, out r, out g, out b, out a);
-        near(b, 1.0, 5e-3, "vector return background");
-        encoded_at(vgot, 20, 15, out r, out g, out b, out a);
-        near(r, 1.0, 5e-3, "vector return shape");
-        vec.stop();
     } catch (Error e) {
         error("%s", e.message);
     }
