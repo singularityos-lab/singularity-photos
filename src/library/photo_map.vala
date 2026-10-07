@@ -186,6 +186,13 @@ namespace Singularity.Apps.Photos {
 
         private bool fit_pending = false;
 
+        public void focus(double lat, double lon, double z) {
+            center_x = lon_to_x(lon);
+            center_y = lat_to_y(lat);
+            zoom = z;
+            queue_draw();
+        }
+
         public void fit() {
             if (get_width() <= 1) {
                 fit_pending = true;

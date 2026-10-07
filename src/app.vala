@@ -139,6 +139,8 @@ namespace Singularity.Apps.Photos {
             file_output.append(_("Print…"), "win.print");
             file_output.append(_("Slideshow"), "win.slideshow");
             file_output.append(_("Photo Book…"), "win.book");
+            file_output.append(_("Create Presentation"), "win.presentation");
+            file_output.append(_("Insert in Write"), "win.insert-write");
             file_output.append(_("Publish…"), "win.publish");
             file_output.append(_("Sync Library…"), "win.sync-library");
             file_menu.append_section(null, file_output);
@@ -252,6 +254,24 @@ namespace Singularity.Apps.Photos {
                 main_window.activate_action_variant("win.view", new Variant.string("favorites"));
             });
             add_action(act_favorites);
+
+            var act_place = new SimpleAction("show-place", new VariantType("(dd)"));
+            act_place.activate.connect((p) => {
+                double lat = p.get_child_value(0).get_double();
+                double lon = p.get_child_value(1).get_double();
+                activate();
+                main_window.activate_action_variant("win.view", new Variant.string("map"));
+                pending_place_lat = lat;
+                pending_place_lon = lon;
+                Idle.add(() => {
+                    if (photo_map != null) {
+                        photo_map.focus(lat, lon, 13);
+                        pending_place_lat = double.NAN;
+                    }
+                    return Source.REMOVE;
+                });
+            });
+            add_action(act_place);
 
             var act_settings = new SimpleAction("settings", null);
             act_settings.activate.connect(() => {
@@ -2462,10 +2482,20 @@ namespace Singularity.Apps.Photos {
             map_page.append(photo_map);
             refresh_map();
             Idle.add(() => {
-                if (photo_map != null) photo_map.fit();
+                if (photo_map != null) {
+                    if (!pending_place_lat.is_nan()) {
+                        photo_map.focus(pending_place_lat, pending_place_lon, 13);
+                        pending_place_lat = double.NAN;
+                    } else {
+                        photo_map.fit();
+                    }
+                }
                 return Source.REMOVE;
             });
         }
+
+        private double pending_place_lat = double.NAN;
+        private double pending_place_lon = double.NAN;
 
         private void refresh_map() {
             if (photo_map == null) return;
@@ -2756,6 +2786,51 @@ namespace Singularity.Apps.Photos {
                 }
                 if (files.length > 0) Slideshow.present(main_window, files);
             });
+            lib_action("presentation", () => {
+                var files = selected_files();
+                if (files.length < 2) {
+                    files = {};
+                    for (uint i = 0; i < photo_store.get_n_items(); i++) {
+                        var pi = (PhotoItem) photo_store.get_item(i);
+                        if (pi.record != null && !pi.record.missing) files += pi.file;
+                    }
+                }
+                if (files.length == 0) return;
+                string[] uris = {};
+                foreach (var f in files) uris += f.get_uri();
+                Singularity.ShareTargets.activate_app_action.begin("dev.sinty.slides", "new-from-images",
+                    new Variant("(s^as)", _("Photos"), uris));
+            });
+            lib_action("insert-write", () => {
+                var files = selected_files();
+                if (files.length < 2) {
+                    files = {};
+                    for (uint i = 0; i < photo_store.get_n_items(); i++) {
+                        var pi = (PhotoItem) photo_store.get_item(i);
+                        if (pi.record != null && !pi.record.missing) files += pi.file;
+                    }
+                }
+                if (files.length == 0) return;
+                var html = new StringBuilder("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>%s</title></head><body><table style=\"width:100%%\">".printf(Markup.escape_text(_("Photos"))));
+                for (int i = 0; i < files.length; i++) {
+                    if (i % 2 == 0) html.append("<tr>");
+                    html.append("<td style=\"width:50%%;padding:4px\"><img src=\"%s\" width=\"290\"><br>%s</td>".printf(Markup.escape_text(files[i].get_uri()), Markup.escape_text(files[i].get_basename())));
+                    if (i % 2 == 1 || i == files.length - 1) html.append("</tr>");
+                }
+                html.append("</table></body></html>");
+                string dir = Path.build_filename(Environment.get_user_cache_dir(), "singularity", "photos-to-write");
+                DirUtils.create_with_parents(dir, 0700);
+                string path = Path.build_filename(dir, _("Photos %s.html").printf(new DateTime.now_local().format("%Y-%m-%d %H-%M")));
+                try {
+                    FileUtils.set_contents(path, html.str);
+                    var write = new DesktopAppInfo("dev.sinty.write.desktop");
+                    var list = new GLib.List<File>();
+                    list.append(File.new_for_path(path));
+                    if (write != null) write.launch(list, Gdk.Display.get_default().get_app_launch_context());
+                } catch (Error e) {
+                    main_window.add_toast(new Toast(e.message));
+                }
+            });
             lib_action("publish", () => {
                 var files = selected_files();
                 if (files.length > 0) PhotoPublish.present(main_window, files);
@@ -2939,6 +3014,8 @@ namespace Singularity.Apps.Photos {
             menu.add_separator();
             menu.add_item(_("Export…"), "document-save-symbolic", () => activate_win("export"));
             menu.add_item(_("Print…"), "document-print-symbolic", () => activate_win("print"));
+            menu.add_item(_("Create Presentation"), "x-office-presentation-symbolic", () => activate_win("presentation"));
+            menu.add_item(_("Insert in Write"), "x-office-document-symbolic", () => activate_win("insert-write"));
             if (photo.record.missing) {
                 var missing = photo.record;
                 menu.add_item(_("Locate Missing Photo…"), "find-location-symbolic", () => relink(missing));
