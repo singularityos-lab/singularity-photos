@@ -139,8 +139,8 @@ namespace Singularity.Apps.Photos {
             file_output.append(_("Print…"), "win.print");
             file_output.append(_("Slideshow"), "win.slideshow");
             file_output.append(_("Photo Book…"), "win.book");
-            file_output.append(_("Create Presentation"), "win.presentation");
-            file_output.append(_("Insert in Write"), "win.insert-write");
+            if (Capabilities.has_app("dev.sinty.slides")) file_output.append(_("Create Presentation"), "win.presentation");
+            if (Capabilities.has_app("dev.sinty.write")) file_output.append(_("Insert in Write"), "win.insert-write");
             file_output.append(_("Publish…"), "win.publish");
             file_output.append(_("Sync Library…"), "win.sync-library");
             file_menu.append_section(null, file_output);
@@ -3014,8 +3014,8 @@ namespace Singularity.Apps.Photos {
             menu.add_separator();
             menu.add_item(_("Export…"), "document-save-symbolic", () => activate_win("export"));
             menu.add_item(_("Print…"), "document-print-symbolic", () => activate_win("print"));
-            menu.add_item(_("Create Presentation"), "x-office-presentation-symbolic", () => activate_win("presentation"));
-            menu.add_item(_("Insert in Write"), "x-office-document-symbolic", () => activate_win("insert-write"));
+            if (Capabilities.has_app("dev.sinty.slides")) menu.add_item(_("Create Presentation"), "x-office-presentation-symbolic", () => activate_win("presentation"));
+            if (Capabilities.has_app("dev.sinty.write")) menu.add_item(_("Insert in Write"), "x-office-document-symbolic", () => activate_win("insert-write"));
             if (photo.record.missing) {
                 var missing = photo.record;
                 menu.add_item(_("Locate Missing Photo…"), "find-location-symbolic", () => relink(missing));
