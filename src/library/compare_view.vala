@@ -110,6 +110,13 @@ namespace Singularity.Apps.Photos {
         private int candidate_index = 1;
         private Gee.ArrayList<ComparePane> panes = new Gee.ArrayList<ComparePane>();
         private Label hint;
+        private Grid? survey_grid = null;
+        private int survey_cols = 0;
+        private int last_width = -1;
+
+        public bool is_survey {
+            get { return survey; }
+        }
 
         public CompareView(Catalog catalog, Gee.List<PhotoRecord> selection, bool survey) {
             Object(orientation: Orientation.VERTICAL, spacing: 8);
@@ -120,6 +127,7 @@ namespace Singularity.Apps.Photos {
             hexpand = true;
             vexpand = true;
             focusable = true;
+            add_tick_callback(follow_width);
             var top = new Box(Orientation.HORIZONTAL, 12);
             apply_bubble_inset(top, 60, 8);
             top.margin_start = top.margin_end = 12;
@@ -210,7 +218,7 @@ namespace Singularity.Apps.Photos {
                 grid.row_spacing = grid.column_spacing = 12;
                 grid.row_homogeneous = grid.column_homogeneous = true;
                 grid.hexpand = grid.vexpand = true;
-                int cols = (int) Math.ceil(Math.sqrt(records.size));
+                survey_grid = grid;
                 for (int i = 0; i < records.size; i++) {
                     var pane = new ComparePane(records[i], catalog, true);
                     var rec = records[i];
@@ -224,11 +232,12 @@ namespace Singularity.Apps.Photos {
                         pane.add_css_class("selected");
                     });
                     panes.add(pane);
-                    grid.attach(pane, i % cols, i / cols);
                 }
+                place_survey(fitting_columns(stage.get_width()));
                 stage.append(grid);
                 return;
             }
+            survey_grid = null;
             if (records.size == 1) candidate_index = 0;
             hint.label = _("Select on the left, candidate on the right. Use the arrow keys to change the candidate");
             foreach (int idx in new int[] { select_index, candidate_index }) {
@@ -248,6 +257,34 @@ namespace Singularity.Apps.Photos {
                     });
                 }
             }
+        }
+    
+        private int fitting_columns(int width) {
+            int wanted = int.max(1, (int) Math.ceil(Math.sqrt(records.size)));
+            if (width <= 0 || panes.size == 0) return wanted;
+            int min_width, natural, min_base, nat_base;
+            panes[0].measure(Orientation.HORIZONTAL, -1, out min_width, out natural, out min_base, out nat_base);
+            int fit = int.max(1, (width + 12) / (min_width + 12));
+            return int.min(wanted, fit);
+        }
+
+        private void place_survey(int cols) {
+            if (survey_grid == null) return;
+            survey_cols = cols;
+            foreach (var p in panes) if (p.get_parent() == survey_grid) survey_grid.remove(p);
+            for (int i = 0; i < panes.size; i++) survey_grid.attach(panes[i], i % cols, i / cols);
+        }
+
+        private bool follow_width(Widget widget, Gdk.FrameClock clock) {
+            if (survey_grid == null) return Source.CONTINUE;
+            var host = get_parent();
+            if (host == null) return Source.CONTINUE;
+            int width = host.get_width() - (get_width() - stage.get_width());
+            if (width == last_width) return Source.CONTINUE;
+            last_width = width;
+            int cols = fitting_columns(width);
+            if (cols != survey_cols) place_survey(cols);
+            return Source.CONTINUE;
         }
     }
 }

@@ -3090,6 +3090,7 @@ namespace Singularity.Apps.Photos {
 
         private void open_compare(bool survey) {
             var recs = selected_records();
+            if (compare_view != null && compare_view.is_survey != survey && recs.size >= 2) close_compare();
             if (recs.size < 2 || compare_view != null || edit_view != null) {
                 if (recs.size < 2) main_window.add_toast(new Toast(_("Select at least two photos")));
                 return;
