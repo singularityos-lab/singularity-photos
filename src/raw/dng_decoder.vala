@@ -12,6 +12,8 @@ namespace Singularity.Apps.Photos {
     }
 
     public class DngDecoder : Object, PhotoDecoder {
+        private const int64 MAX_PIXELS = 1 << 28;
+
         public string id { get { return "dng"; } }
 
         public bool handles(string lower_name, uint8[] head) {
@@ -91,7 +93,7 @@ namespace Singularity.Apps.Photos {
             img.width = (int) r.get_uint(ifd, 256);
             img.height = (int) r.get_uint(ifd, 257);
             img.samples = (int) r.get_uint(ifd, 277, 1);
-            if (img.width <= 0 || img.height <= 0 || img.samples <= 0 || img.width > 65535 || img.height > 65535) throw new IOError.INVALID_DATA(_("Invalid DNG image size"));
+            if (img.width <= 0 || img.height <= 0 || img.samples <= 0 || img.samples > 4 || img.width > 65535 || img.height > 65535 || (int64) img.width * img.height > MAX_PIXELS) throw new IOError.INVALID_DATA(_("Invalid DNG image size"));
             int bits = (int) r.get_uint(ifd, 258, 16);
             int compression = (int) r.get_uint(ifd, 259, 1);
             int format = (int) r.get_uint(ifd, 339, 1);
@@ -103,7 +105,7 @@ namespace Singularity.Apps.Photos {
                 var pat = r.get_bytes(ifd, 33422);
                 var planes = r.get_bytes(ifd, 50710);
                 int pw = dims.length >= 2 ? (int) dims[1] : 2, ph = dims.length >= 2 ? (int) dims[0] : 2;
-                if (pat.length >= pw * ph && pw > 0 && ph > 0) {
+                if (pw > 0 && ph > 0 && pw <= 16 && ph <= 16 && pat.length >= pw * ph) {
                     var colors = new int[pw * ph];
                     for (int i = 0; i < pw * ph; i++) {
                         int c = pat[i];
@@ -122,7 +124,7 @@ namespace Singularity.Apps.Photos {
             bool tiled = ifd.has(322);
             int tw = tiled ? (int) r.get_uint(ifd, 322) : img.width;
             int th = tiled ? (int) r.get_uint(ifd, 323) : (int) uint32.min(r.get_uint(ifd, 278, img.height), img.height);
-            if (tw <= 0 || th <= 0) throw new IOError.INVALID_DATA(_("Invalid DNG tile size"));
+            if (tw <= 0 || th <= 0 || tw > 65535 || th > 65535 || (int64) tw * th > MAX_PIXELS) throw new IOError.INVALID_DATA(_("Invalid DNG tile size"));
             var offsets = tiled ? r.get_uints(ifd, 324) : r.get_uints(ifd, 273);
             var counts = tiled ? r.get_uints(ifd, 325) : r.get_uints(ifd, 279);
             int across = tiled ? (img.width + tw - 1) / tw : 1;

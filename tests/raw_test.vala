@@ -264,6 +264,40 @@ private void test_dng_cfa_plain() {
     test_dng_cfa(false);
 }
 
+private void test_raw_damaged() {
+    int w = 64, h = 48;
+    var src = scene(w, h);
+    var pat = new CfaPattern.bayer("RGGB");
+    var cfa = mosaic(src, pat);
+    double[] cm = Matrix3.invert(Primaries.rec709().to_xyz());
+    var meta = new PhotoMetadata();
+    var dng = DngWriter.cfa_bytes(cfa, w, h, "RGGB", cm, { 0.5, 1.0, 0.8 }, true, meta, 512, 16383);
+    var samples = new uint16[16 * 8];
+    for (int i = 0; i < samples.length; i++) samples[i] = (uint16) (i * 97);
+    var lj = Ljpeg.encode(samples, 16, 8, 1, 16);
+    var rand = new Rand.with_seed(3);
+    for (int round = 0; round < 300; round++) {
+        uint8[] a = lj.copy();
+        uint8[] d = dng.copy();
+        int flips = 1 + rand.int_range(0, 6);
+        for (int i = 0; i < flips; i++) {
+            a[rand.int_range(0, int.min(a.length, 80))] = (uint8) rand.int_range(0, 256);
+            d[rand.int_range(0, round % 2 == 0 ? int.min(d.length, 1024) : d.length)] = (uint8) rand.int_range(0, 256);
+        }
+        if (round % 3 == 0) a.length = rand.int_range(2, a.length);
+        int dw, dh, dc;
+        try {
+            Ljpeg.decode(a, 0, a.length, out dw, out dh, out dc);
+        } catch (Error e) {
+        }
+        string path = write_fixture("damaged.dng", d);
+        try {
+            new DngDecoder().decode(File.new_for_path(path), 0);
+        } catch (Error e) {
+        }
+    }
+}
+
 private void test_dng_cfa_ljpeg() {
     test_dng_cfa(true);
 }
@@ -554,6 +588,7 @@ int main(string[] args) {
     Test.add_func("/raw/highlights", test_highlights);
     Test.add_func("/raw/dng-cfa", test_dng_cfa_plain);
     Test.add_func("/raw/dng-cfa-ljpeg", test_dng_cfa_ljpeg);
+    Test.add_func("/raw/damaged", test_raw_damaged);
     Test.add_func("/raw/dng-linear", test_dng_linear);
     Test.add_func("/raw/codecs", test_codecs_dispatch);
     Test.add_func("/raw/dng-opcodes", test_dng_opcode_vignette);

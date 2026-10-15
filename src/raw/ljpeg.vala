@@ -2,6 +2,8 @@ namespace Singularity.Apps.Photos {
 
     namespace Ljpeg {
 
+        private const int64 MAX_SAMPLES = 1 << 30;
+
         private class Huffman {
             public int[] maxcode = new int[18];
             public int[] valptr = new int[17];
@@ -101,7 +103,7 @@ namespace Singularity.Apps.Photos {
                 }
                 if (l > 16) return 0;
                 int idx = h.valptr[l] + code - h.mincode[l];
-                return idx < h.values.length ? h.values[idx] : 0;
+                return idx >= 0 && idx < h.values.length ? h.values[idx] : 0;
             }
         }
 
@@ -130,33 +132,41 @@ namespace Singularity.Apps.Photos {
                 }
                 int len = (data[pos + 2] << 8) | data[pos + 3];
                 size_t seg = pos + 4;
+                size_t seg_end = pos + 2 + len;
+                if (marker != 0xD9 && (len < 2 || seg_end > end)) throw new IOError.INVALID_DATA("Truncated lossless JPEG stream");
                 if (marker == 0xC4) {
                     size_t p = seg;
-                    while (p < pos + 2 + len) {
+                    while (p < seg_end) {
+                        if (p + 17 > seg_end) throw new IOError.INVALID_DATA("Truncated lossless JPEG stream");
                         int id = data[p] & 0x0F;
                         var bits = data[p + 1:p + 17];
                         int total = 0;
                         foreach (var b in bits) total += b;
+                        if (p + 17 + total > seg_end) throw new IOError.INVALID_DATA("Truncated lossless JPEG stream");
                         var vals = data[p + 17:p + 17 + total];
                         if (id < 4) tables[id].build(bits, vals);
                         p += 17 + total;
                     }
                 } else if (marker == 0xC3) {
+                    if (seg + 6 > seg_end || seg + 6 + (size_t) data[seg + 5] * 3 > seg_end) throw new IOError.INVALID_DATA("Truncated lossless JPEG stream");
                     precision = data[seg];
                     height = (data[seg + 1] << 8) | data[seg + 2];
                     width = (data[seg + 3] << 8) | data[seg + 4];
                     components = data[seg + 5];
                     for (int c = 0; c < components; c++) comp_ids += data[seg + 6 + c * 3];
                 } else if (marker == 0xDD) {
+                    if (seg + 2 > seg_end) throw new IOError.INVALID_DATA("Truncated lossless JPEG stream");
                     restart = (data[seg] << 8) | data[seg + 1];
                 } else if (marker == 0xDA) {
+                    if (seg + 1 > seg_end || seg + 4 + (size_t) data[seg] * 2 > seg_end) throw new IOError.INVALID_DATA("Truncated lossless JPEG stream");
                     int ns = data[seg];
                     var comp_table = new int[ns];
                     for (int c = 0; c < ns; c++) comp_table[c] = (data[seg + 2 + c * 2] >> 4) & 3;
                     int predictor = data[seg + 1 + ns * 2];
                     int pt = data[seg + 3 + ns * 2] & 0x0F;
                     size_t scan = pos + 2 + len;
-                    if (width <= 0 || height <= 0 || components <= 0 || ns != components) throw new IOError.INVALID_DATA("Unsupported lossless JPEG layout");
+                    if (width <= 0 || height <= 0 || components <= 0 || components > 4 || ns != components) throw new IOError.INVALID_DATA("Unsupported lossless JPEG layout");
+                    if (precision < 2 || precision > 16 || pt >= precision || (int64) width * height * components > MAX_SAMPLES) throw new IOError.INVALID_DATA("Unsupported lossless JPEG layout");
                     return decode_scan(data, scan, end, width, height, components, precision, predictor, pt, restart, tables, comp_table);
                 } else if (marker == 0xD9) {
                     break;
@@ -189,7 +199,7 @@ namespace Singularity.Apps.Photos {
                         if (!h.defined) throw new IOError.INVALID_DATA("Missing Huffman table");
                         int ssss = reader.decode(h);
                         int diff;
-                        if (ssss == 0) {
+                        if (ssss == 0 || ssss > 16) {
                             diff = 0;
                         } else if (ssss == 16) {
                             diff = 32768;
