@@ -38,7 +38,7 @@ namespace Singularity.Apps.Photos {
             if (user != "") msg.request_headers.replace("Authorization", "Basic " + Base64.encode((user + ":" + password).data));
             if (headers != null) headers.foreach((k, v) => msg.request_headers.replace(k, v));
             if (body != null) msg.set_request_body_from_bytes(content_type ?? "application/octet-stream", body);
-            var data = yield session.send_and_read_async(msg, Priority.DEFAULT, cancellable);
+            var data = yield Singularity.HttpBody.read(session, msg, 32 * 1024 * 1024, Priority.DEFAULT, cancellable);
             if (msg.status_code == 401) throw new IOError.PERMISSION_DENIED(_("The server rejected the user name or password"));
             return new DavReply(msg.status_code, data, msg.response_headers.get_one("ETag") ?? "");
         }

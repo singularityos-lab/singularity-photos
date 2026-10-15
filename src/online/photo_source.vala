@@ -161,7 +161,7 @@ namespace Singularity.Apps.Photos {
             if (msg == null) throw new AccountsError.INVALID(_("The address %s is not valid").printf(url));
             GLib.Bytes data;
             try {
-                data = yield plain.send_and_read_async(msg, GLib.Priority.DEFAULT, cancellable);
+                data = yield Singularity.HttpBody.read(plain, msg, 512 * 1024 * 1024, GLib.Priority.DEFAULT, cancellable);
             } catch (GLib.IOError.CANCELLED e) {
                 throw new AccountsError.CANCELLED(e.message);
             } catch (GLib.Error e) {
