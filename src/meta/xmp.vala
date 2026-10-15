@@ -416,7 +416,7 @@ namespace Singularity.Apps.Photos {
                     if (full > 0 && full < 64 * 1024 * 1024) {
                         if (whole == null || whole.length != full) whole = new uint8[full];
                         int chunk = len + 2 - header;
-                        if (offset + chunk <= full) Memory.copy(&whole[offset], &data[pos + header], chunk);
+                        if ((uint64) offset + chunk <= full) Memory.copy(&whole[offset], &data[pos + header], chunk);
                     }
                 }
                 pos += 2 + len;

@@ -84,6 +84,34 @@ private void test_zip() {
     }
 }
 
+private void test_zip_corrupt() {
+    uint8[] data;
+    try {
+        var w = new RetouchZipWriter();
+        w.add_text("mimetype", "image/openraster", false);
+        var big = new uint8[5000];
+        for (int i = 0; i < big.length; i++) big[i] = (uint8) (i % 7);
+        w.add("data/big.bin", big);
+        data = w.finish();
+    } catch (Error e) {
+        error("%s", e.message);
+    }
+    var rand = new Rand.with_seed(11);
+    for (int round = 0; round < 600; round++) {
+        uint8[] copy = data.copy();
+        int flips = 1 + rand.int_range(0, 6);
+        for (int i = 0; i < flips; i++) {
+            int at = round % 2 == 0 ? copy.length - 1 - rand.int_range(0, int.min(copy.length, 120)) : rand.int_range(0, copy.length);
+            copy[at] = (uint8) rand.int_range(0, 256);
+        }
+        try {
+            var r = new RetouchZipReader(copy);
+            foreach (var name in r.names()) r.read(name);
+        } catch (Error e) {
+        }
+    }
+}
+
 private void test_composite() {
     var doc = new RetouchDocument(4, 4);
     var a = new RetouchLayer("a", RetouchLayerKind.RASTER);
@@ -213,6 +241,36 @@ private void test_ora_roundtrip() {
         assert(decoded.image.width == 48 && decoded.layers != null && decoded.layers.size > 0);
     } catch (Error e) {
         error("%s", e.message);
+    }
+}
+
+private void test_psd_corrupt() {
+    var doc = sample_document();
+    doc.layers.remove_at(2);
+    doc.recomposite();
+    uint8[] data;
+    try {
+        data = RetouchPsd.write(doc, 8);
+    } catch (Error e) {
+        error("%s", e.message);
+    }
+    var rand = new Rand.with_seed(7);
+    for (int round = 0; round < 400; round++) {
+        uint8[] copy = data.copy();
+        if (round < 200) {
+            copy.length = (int) (copy.length * round / 200.0);
+        } else {
+            int flips = 1 + rand.int_range(0, 8);
+            for (int i = 0; i < flips; i++) copy[rand.int_range(0, copy.length)] = (uint8) rand.int_range(0, 256);
+        }
+        try {
+            RetouchPsd.read(copy);
+        } catch (Error e) {
+        }
+        try {
+            RetouchPsd.read_merged(copy);
+        } catch (Error e) {
+        }
     }
 }
 
@@ -593,12 +651,14 @@ int main(string[] args) {
     Test.init(ref args);
     fixtures = args.length > 1 ? args[1] : "tests/fixtures";
     Test.add_func("/retouch/zip", test_zip);
+    Test.add_func("/retouch/zip-corrupt", test_zip_corrupt);
     Test.add_func("/retouch/composite", test_composite);
     Test.add_func("/retouch/undo", test_undo);
     Test.add_func("/retouch/ora", test_ora_roundtrip);
     Test.add_func("/retouch/psd8", test_psd_8);
     Test.add_func("/retouch/psd16", test_psd_16);
     Test.add_func("/retouch/psd-imagemagick", test_psd_magick);
+    Test.add_func("/retouch/psd-corrupt", test_psd_corrupt);
     Test.add_func("/retouch/selection", test_selection);
     Test.add_func("/retouch/liquify", test_liquify);
     Test.add_func("/retouch/mesh", test_mesh);

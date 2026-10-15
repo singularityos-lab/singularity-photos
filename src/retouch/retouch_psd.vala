@@ -4,6 +4,9 @@ namespace Singularity.Apps.Photos {
 
     namespace RetouchPsd {
 
+        private const int MAX_SIDE = 300000;
+        private const int64 MAX_PIXELS = 1 << 28;
+
         private class Reader {
             public unowned uint8[] data;
             public int pos = 0;
@@ -13,7 +16,22 @@ namespace Singularity.Apps.Photos {
             }
 
             public void need(int n) throws Error {
-                if (pos + n > data.length || n < 0) throw new RetouchFormatError.INVALID("Truncated PSD file");
+                if (n < 0 || (int64) pos + n > data.length) throw new RetouchFormatError.INVALID("Truncated PSD file");
+            }
+
+            public void seek(int64 p) throws Error {
+                if (p < 0 || p > data.length) throw new RetouchFormatError.INVALID("Truncated PSD file");
+                pos = (int) p;
+            }
+
+            public void skip(int64 n) throws Error {
+                seek(pos + n);
+            }
+
+            public int span(uint32 length) throws Error {
+                int64 e = (int64) pos + length;
+                if (e > data.length) throw new RetouchFormatError.INVALID("Truncated PSD file");
+                return (int) e;
             }
 
             public uint8 u8() throws Error {
@@ -95,10 +113,20 @@ namespace Singularity.Apps.Photos {
             }
         }
 
+        private void check_size(int64 w, int64 h) throws Error {
+            if (w > MAX_SIDE || h > MAX_SIDE || w * h > MAX_PIXELS) throw new RetouchFormatError.UNSUPPORTED("The PSD image is too large");
+        }
+
+        private int row_bytes(int w, int depth) {
+            return (int) (((int64) w * depth + 7) / 8);
+        }
+
         private float[] read_plane(Reader r, int w, int h, int depth, int compression, int end) throws Error {
-            var plane = new float[(size_t) int.max(0, w) * int.max(0, h)];
-            if (w <= 0 || h <= 0) return plane;
-            int bpr = w * depth / 8;
+            if (w <= 0 || h <= 0) return new float[0];
+            check_size(w, h);
+            if (end < r.pos || end > r.data.length) throw new RetouchFormatError.INVALID("Truncated PSD file");
+            var plane = new float[(size_t) w * h];
+            int bpr = row_bytes(w, depth);
             var row = new uint8[bpr];
             if (compression == 0) {
                 for (int y = 0; y < h; y++) {
@@ -108,7 +136,7 @@ namespace Singularity.Apps.Photos {
                     decode_row(row, plane, y, w, depth);
                 }
             } else if (compression == 1) {
-                r.pos += h * 2;
+                r.skip((int64) h * 2);
                 for (int y = 0; y < h; y++) {
                     unpack_bits(r, row, bpr, end);
                     decode_row(row, plane, y, w, depth);
@@ -137,7 +165,7 @@ namespace Singularity.Apps.Photos {
                     Memory.copy(row, &raw[y * bpr], bpr);
                     decode_row(row, plane, y, w, depth);
                 }
-                r.pos = end;
+                r.seek(end);
             } else {
                 throw new RetouchFormatError.UNSUPPORTED("Unsupported PSD compression");
             }
@@ -168,7 +196,7 @@ namespace Singularity.Apps.Photos {
             r.pos += len;
             int total = len + 1;
             while (total % align != 0) {
-                r.pos++;
+                r.skip(1);
                 total++;
             }
             return s.make_valid();
@@ -233,7 +261,7 @@ namespace Singularity.Apps.Photos {
             if (r.sig() != "8BPS") throw new RetouchFormatError.INVALID("Not a PSD file");
             int version = r.u16();
             if (version != 1) throw new RetouchFormatError.UNSUPPORTED("Large document (PSB) files are not supported");
-            r.pos += 6;
+            r.skip(6);
             var hd = new Header();
             hd.channels = r.u16();
             hd.height = (int) r.u32();
@@ -242,15 +270,17 @@ namespace Singularity.Apps.Photos {
             hd.mode = r.u16();
             if (hd.mode != 3 && hd.mode != 1 && hd.mode != 8) throw new RetouchFormatError.UNSUPPORTED("Only RGB and grayscale PSD files are supported");
             if (hd.depth != 8 && hd.depth != 16 && hd.depth != 32 && hd.depth != 1) throw new RetouchFormatError.UNSUPPORTED("Unsupported PSD bit depth");
+            if (hd.width <= 0 || hd.height <= 0 || hd.channels < 1 || hd.channels > 56) throw new RetouchFormatError.INVALID("Broken PSD header");
+            check_size(hd.width, hd.height);
             return hd;
         }
 
         public FloatImage read_merged(uint8[] data) throws Error {
             var r = new Reader(data);
             var hd = read_header(r);
-            r.pos += (int) r.u32();
-            r.pos += (int) r.u32();
-            r.pos += (int) r.u32();
+            r.skip(r.u32());
+            r.skip(r.u32());
+            r.skip(r.u32());
             return read_merged_section(r, hd);
         }
 
@@ -260,18 +290,18 @@ namespace Singularity.Apps.Photos {
             int w = hd.width, h = hd.height;
             if (compression == 1) {
                 int counts_pos = r.pos;
-                r.pos += hd.channels * h * 2;
+                r.skip((int64) hd.channels * h * 2);
                 for (int c = 0; c < hd.channels; c++) {
                     int total = 0;
                     for (int y = 0; y < h; y++) total += (data_u16(r.data, counts_pos + (c * h + y) * 2));
                     int start = r.pos;
                     var plane = new float[(size_t) w * h];
-                    var row = new uint8[w * hd.depth / 8];
+                    var row = new uint8[row_bytes(w, hd.depth)];
                     for (int y = 0; y < h; y++) {
                         unpack_bits(r, row, row.length, start + total);
                         decode_row(row, plane, y, w, hd.depth);
                     }
-                    r.pos = start + total;
+                    r.seek((int64) start + total);
                     int idx = hd.mode == 3 ? c : (c == 0 ? 0 : (c == 1 ? 3 : -1));
                     if (hd.mode == 3 && c == 3) idx = 3;
                     if (idx >= 0 && idx < 4) planes.put(idx, plane);
@@ -294,45 +324,47 @@ namespace Singularity.Apps.Photos {
         public RetouchDocument read(uint8[] data) throws Error {
             var r = new Reader(data);
             var hd = read_header(r);
-            r.pos += (int) r.u32();
-            uint32 res_len = r.u32();
-            r.pos += (int) res_len;
+            r.skip(r.u32());
+            r.skip(r.u32());
             uint32 lm_len = r.u32();
-            int lm_end = r.pos + (int) lm_len;
+            int lm_end = r.span(lm_len);
             var doc = new RetouchDocument(hd.width, hd.height);
             var records = new Gee.ArrayList<Record>();
             if (lm_len > 0) {
                 uint32 li_len = r.u32();
-                int li_end = r.pos + (int) li_len;
+                int li_end = r.span(li_len);
                 if (li_len > 0) {
                     int count = ((int16) r.u16()).abs();
                     for (int i = 0; i < count; i++) records.add(read_record(r));
                     foreach (var rec in records) {
                         foreach (var ch in rec.channels) {
                             int ch_start = r.pos;
-                            int ch_end = ch_start + (int) ch.length;
+                            int ch_end = r.span(ch.length);
                             if (ch.length < 2) {
-                                r.pos = ch_end;
+                                r.seek(ch_end);
                                 continue;
                             }
                             int compression = r.u16();
-                            int w, h;
+                            int64 w, h;
                             if (ch.id == -2 || ch.id == -3) {
-                                w = rec.mask_right - rec.mask_left;
-                                h = rec.mask_bottom - rec.mask_top;
+                                w = (int64) rec.mask_right - rec.mask_left;
+                                h = (int64) rec.mask_bottom - rec.mask_top;
                             } else {
-                                w = rec.right - rec.left;
-                                h = rec.bottom - rec.top;
+                                w = (int64) rec.right - rec.left;
+                                h = (int64) rec.bottom - rec.top;
                             }
-                            if (w > 0 && h > 0) ch.plane = read_plane(r, w, h, hd.depth, compression, ch_end);
-                            r.pos = ch_end;
+                            if (w > 0 && h > 0) {
+                                check_size(w, h);
+                                ch.plane = read_plane(r, (int) w, (int) h, hd.depth, compression, ch_end);
+                            }
+                            r.seek(ch_end);
                         }
                     }
                 }
-                r.pos = li_end;
+                r.seek(li_end);
             }
             build_tree(doc, records, hd);
-            r.pos = lm_end;
+            r.seek(lm_end);
             if (records.size == 0) {
                 var merged = read_merged_section(r, hd);
                 var layer = new RetouchLayer(_("Background"), RetouchLayerKind.RASTER);
@@ -363,9 +395,9 @@ namespace Singularity.Apps.Photos {
             rec.flags = r.u8();
             r.u8();
             uint32 extra = r.u32();
-            int extra_end = r.pos + (int) extra;
+            int extra_end = r.span(extra);
             uint32 mask_len = r.u32();
-            int mask_end = r.pos + (int) mask_len;
+            int mask_end = r.span(mask_len);
             if (mask_len >= 20) {
                 rec.has_mask = true;
                 rec.mask_top = r.i32();
@@ -375,16 +407,15 @@ namespace Singularity.Apps.Photos {
                 rec.mask_default = r.u8();
                 rec.mask_flags = r.u8();
             }
-            r.pos = mask_end;
-            uint32 ranges = r.u32();
-            r.pos += (int) ranges;
+            r.seek(mask_end);
+            r.skip(r.u32());
             rec.name = read_pascal(r, 4);
             while (r.pos + 12 <= extra_end) {
                 string s = r.sig();
                 if (s != "8BIM" && s != "8B64") break;
                 string key = r.sig();
                 uint32 len = r.u32();
-                int block_end = r.pos + (int) len;
+                int block_end = r.span(len);
                 if (key == "luni" && len >= 4) {
                     uint32 chars = r.u32();
                     var sb = new StringBuilder();
@@ -400,9 +431,9 @@ namespace Singularity.Apps.Photos {
                         rec.section_blend = r.sig();
                     }
                 }
-                r.pos = block_end;
+                r.seek(block_end);
             }
-            r.pos = extra_end;
+            r.seek(extra_end);
             return rec;
         }
 
@@ -412,8 +443,10 @@ namespace Singularity.Apps.Photos {
             layer.visible = (rec.flags & 2) == 0;
             layer.locked = (rec.flags & 1) != 0;
             layer.mode = rec.blend == "pass" ? BlendMode.NORMAL : BlendMode.from_key(rec.blend);
-            int w = rec.right - rec.left, h = rec.bottom - rec.top;
-            if (w > 0 && h > 0) {
+            int64 lw = (int64) rec.right - rec.left, lh = (int64) rec.bottom - rec.top;
+            bool fits = lw > 0 && lh > 0 && lw <= MAX_SIDE && lh <= MAX_SIDE && lw * lh <= MAX_PIXELS;
+            int w = fits ? (int) lw : 0, h = fits ? (int) lh : 0;
+            if (fits) {
                 var planes = new Planes();
                 foreach (var ch in rec.channels) {
                     int idx = color_index(ch.id, hd.mode);
@@ -435,6 +468,7 @@ namespace Singularity.Apps.Photos {
                 var mask = doc.full_plane(rec.mask_default / 255.0f);
                 int mw = rec.mask_right - rec.mask_left;
                 int mh = rec.mask_bottom - rec.mask_top;
+                if ((size_t) mw * mh > ch.plane.length) continue;
                 for (int y = 0; y < mh; y++) {
                     int dy = y + rec.mask_top;
                     if (dy < 0 || dy >= doc.height) continue;

@@ -24,6 +24,8 @@ namespace Singularity.Apps.Photos {
             public uint32 offset;
         }
 
+        private const uint32 MAX_ENTRY = 1u << 30;
+
         private uint8[] data;
         private Gee.HashMap<string, Entry> entries = new Gee.HashMap<string, Entry>();
 
@@ -46,15 +48,18 @@ namespace Singularity.Apps.Photos {
             }
             if (eocd < 0) throw new RetouchFormatError.INVALID("Not a zip archive");
             int count = u16(eocd + 10);
-            int p = (int) u32(eocd + 16);
+            int64 dir = u32(eocd + 16);
+            if (dir > data.length) throw new RetouchFormatError.INVALID("Broken zip directory");
+            int p = (int) dir;
             for (int i = 0; i < count; i++) {
-                if (p + 46 > data.length || u32(p) != 0x02014b50) throw new RetouchFormatError.INVALID("Broken zip directory");
+                if ((int64) p + 46 > data.length || u32(p) != 0x02014b50) throw new RetouchFormatError.INVALID("Broken zip directory");
                 var e = new Entry();
                 e.method = u16(p + 10);
                 e.compressed = u32(p + 20);
                 e.size = u32(p + 24);
                 int name_len = u16(p + 28), extra_len = u16(p + 30), comment_len = u16(p + 32);
                 e.offset = u32(p + 42);
+                if ((int64) p + 46 + name_len > data.length) throw new RetouchFormatError.INVALID("Broken zip directory");
                 e.name = RetouchBytes.to_string(data, p + 46, name_len);
                 entries[e.name] = e;
                 p += 46 + name_len + extra_len + comment_len;
@@ -72,11 +77,14 @@ namespace Singularity.Apps.Photos {
         public uint8[] read(string name) throws Error {
             var e = entries[name];
             if (e == null) throw new RetouchFormatError.INVALID("Missing entry %s".printf(name));
+            if ((int64) e.offset + 30 > data.length) throw new RetouchFormatError.INVALID("Broken zip entry");
             int p = (int) e.offset;
-            if (p + 30 > data.length || u32(p) != 0x04034b50) throw new RetouchFormatError.INVALID("Broken zip entry");
-            int start = p + 30 + u16(p + 26) + u16(p + 28);
-            int end = start + (int) e.compressed;
-            if (end > data.length) throw new RetouchFormatError.INVALID("Truncated zip entry");
+            if (u32(p) != 0x04034b50) throw new RetouchFormatError.INVALID("Broken zip entry");
+            int64 first = (int64) p + 30 + u16(p + 26) + u16(p + 28);
+            int64 last = first + e.compressed;
+            if (last > data.length) throw new RetouchFormatError.INVALID("Truncated zip entry");
+            if (e.size > MAX_ENTRY) throw new RetouchFormatError.UNSUPPORTED("The zip entry is too large");
+            int start = (int) first, end = (int) last;
             if (e.method == 0) return data[start:end];
             if (e.method != 8) throw new RetouchFormatError.UNSUPPORTED("Unsupported zip compression");
             var converter = new ZlibDecompressor(ZlibCompressorFormat.RAW);
