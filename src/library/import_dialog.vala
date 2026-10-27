@@ -315,8 +315,7 @@ namespace Singularity.Apps.Photos {
             new Thread<void>("photos-import-thumb", () => {
                 Gdk.Texture? tex = null;
                 try {
-                    var pb = new Gdk.Pixbuf.from_file_at_scale(path, 240, 180, true);
-                    pb = pb.apply_embedded_orientation() ?? pb;
+                    var pb = EditImageIO.scaled(path, 240, 180);
                     tex = Gdk.Texture.for_pixbuf(pb);
                 } catch (Error e) {
                 }

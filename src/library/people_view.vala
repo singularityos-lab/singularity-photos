@@ -224,8 +224,7 @@ namespace Singularity.Apps.Photos {
             new Thread<void>("photos-face-thumb", () => {
                 Gdk.Texture? tex = null;
                 try {
-                    var pb = new Gdk.Pixbuf.from_file_at_scale(path, 900, 900, true);
-                    pb = pb.apply_embedded_orientation() ?? pb;
+                    var pb = EditImageIO.scaled(path, 900, 900);
                     double pad = 0.25;
                     int x = (int) ((fx - fw * pad) * pb.width).clamp(0, pb.width - 1);
                     int y = (int) ((fy - fh * pad) * pb.height).clamp(0, pb.height - 1);
@@ -446,8 +445,7 @@ namespace Singularity.Apps.Photos {
                 new Thread<void>("photos-face-crop", () => {
                     Gdk.Texture? tex = null;
                     try {
-                        var pb = new Gdk.Pixbuf.from_file_at_scale(path, 900, 900, true);
-                        pb = pb.apply_embedded_orientation() ?? pb;
+                        var pb = EditImageIO.scaled(path, 900, 900);
                         double pad = 0.25;
                         int x = (int) ((fx - fw * pad) * pb.width).clamp(0, pb.width - 1);
                         int y = (int) ((fy - fh * pad) * pb.height).clamp(0, pb.height - 1);

@@ -255,8 +255,7 @@ namespace Singularity.Apps.Photos {
                 Gdk.Texture? tex = null;
                 try {
                     var shown = EditImageIO.display_file(File.new_for_path(path));
-                    var pb = new Gdk.Pixbuf.from_file_at_scale((shown ?? File.new_for_path(path)).get_path(), 96, 96, true);
-                    pb = pb.apply_embedded_orientation() ?? pb;
+                    var pb = EditImageIO.scaled((shown ?? File.new_for_path(path)).get_path(), 96, 96);
                     tex = Gdk.Texture.for_pixbuf(pb);
                 } catch (Error e) {
                 }

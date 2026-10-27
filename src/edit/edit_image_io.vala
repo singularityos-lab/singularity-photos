@@ -100,6 +100,26 @@ namespace Singularity.Apps.Photos {
             return pixbuf.apply_embedded_orientation() ?? pixbuf;
         }
 
+        public Gdk.Pixbuf scaled(string path, int width, int height) throws Error {
+            var info = File.new_for_path(path).query_info("time::modified,time::modified-usec,standard::size",
+                                                          FileQueryInfoFlags.NONE);
+            var id = "%s\n%llu.%u\n%lld\n%dx%d".printf(path,
+                info.get_attribute_uint64("time::modified"), info.get_attribute_uint32("time::modified-usec"),
+                info.get_size(), width, height);
+            string? failure = null;
+            var packed = Singularity.Compute.for_thread().call(6, Singularity.Compute.key("photos-scaled", id.data), () => {
+                try {
+                    return Singularity.Compute.pack_pixbuf(oriented(new Gdk.Pixbuf.from_file_at_scale(path, width, height, true)));
+                } catch (Error e) {
+                    failure = e.message;
+                    return Singularity.Compute.pack_pixbuf(null);
+                }
+            });
+            var pixbuf = Singularity.Compute.unpack_pixbuf(packed);
+            if (pixbuf == null) throw new IOError.FAILED(failure ?? "cannot load %s".printf(path));
+            return pixbuf;
+        }
+
         public bool has_orientation(Gdk.Pixbuf pixbuf) {
             string? tag = pixbuf.get_option("orientation");
             return tag != null && tag != "1";

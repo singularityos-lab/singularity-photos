@@ -1229,7 +1229,7 @@ namespace Singularity.Apps.Photos {
                         var poster = VideoTools.cached_poster(GLib.File.new_for_path(source), int.max(px * 2, 256));
                         if (poster != null) source = poster.get_path();
                     }
-                    pb = EditImageIO.oriented(new Gdk.Pixbuf.from_file_at_scale(source, px, px, true));
+                    pb = EditImageIO.scaled(source, px, px);
                 } catch (Error e) {}
                 GLib.Idle.add(() => {
                     string? expected = img.get_data<string>("thumb-for-path");
