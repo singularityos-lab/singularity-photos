@@ -100,6 +100,7 @@ namespace Singularity.Apps.Photos {
         protected override void startup() {
             base.startup();
             setup_styles();
+            PhotosIntents.install(this);
 
             // Load settings, falling back to exe-relative compiled schemas in dev
             var source = SettingsSchemaSource.get_default();

@@ -72,6 +72,7 @@ sources = files(
   'src/window.vala',
   'src/photo_item.vala',
   'src/app.vala',
+  'src/agent_intents.vala',
   'src/online/photo_source.vala',
   'src/online/google_photos.vala',
   'src/online/onedrive_photos.vala',
