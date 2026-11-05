@@ -10,7 +10,7 @@ namespace Singularity.Apps.Photos {
         private Catalog catalog;
         private File library;
         private AppDialog dlg;
-        private DropDown source_dd;
+        private ChoiceButton source_dd;
         private Gee.ArrayList<File> sources = new Gee.ArrayList<File>();
         private FlowBox tiles;
         private Label count_label;
@@ -55,7 +55,7 @@ namespace Singularity.Apps.Photos {
             left.hexpand = true;
             paned.append(left);
             var source_bar = new Box(Orientation.HORIZONTAL, 8);
-            source_dd = new DropDown(new StringList(null), null);
+            source_dd = new ChoiceButton(new StringList(null), null);
             source_dd.hexpand = true;
             source_dd.notify["selected"].connect(() => {
                 if (source_dd.selected < sources.size) scan(sources[(int) source_dd.selected]);

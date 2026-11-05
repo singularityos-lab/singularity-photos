@@ -9,15 +9,15 @@ namespace Singularity.Apps.Photos {
 
         public signal void changed();
 
-        private DropDown rating_dd;
-        private DropDown flag_dd;
-        private DropDown kind_dd;
-        private DropDown edited_dd;
-        private DropDown camera_dd;
-        private DropDown lens_dd;
-        private DropDown year_dd;
-        private DropDown keyword_dd;
-        private DropDown sort_dd;
+        private ChoiceButton rating_dd;
+        private ChoiceButton flag_dd;
+        private ChoiceButton kind_dd;
+        private ChoiceButton edited_dd;
+        private ChoiceButton camera_dd;
+        private ChoiceButton lens_dd;
+        private ChoiceButton year_dd;
+        private ChoiceButton keyword_dd;
+        private ChoiceButton sort_dd;
         private ToggleButton order_btn;
         private Gee.HashMap<string, ToggleButton> label_buttons = new Gee.HashMap<string, ToggleButton>();
         private string[] cameras = {};
@@ -108,7 +108,7 @@ namespace Singularity.Apps.Photos {
             });
             row2.append(edited_dd);
 
-            year_dd = new DropDown(new StringList(null), null);
+            year_dd = new ChoiceButton(new StringList(null), null);
             year_dd.notify["selected"].connect(() => {
                 if (syncing) return;
                 filter.year = year_dd.selected == 0 || year_dd.selected > years.length ? 0 : int.parse(years[year_dd.selected - 1]);
@@ -116,7 +116,7 @@ namespace Singularity.Apps.Photos {
             });
             row2.append(year_dd);
 
-            camera_dd = new DropDown(new StringList(null), null);
+            camera_dd = new ChoiceButton(new StringList(null), null);
             camera_dd.notify["selected"].connect(() => {
                 if (syncing) return;
                 filter.camera = camera_dd.selected == 0 || camera_dd.selected > cameras.length ? "" : cameras[camera_dd.selected - 1];
@@ -124,7 +124,7 @@ namespace Singularity.Apps.Photos {
             });
             row2.append(camera_dd);
 
-            lens_dd = new DropDown(new StringList(null), null);
+            lens_dd = new ChoiceButton(new StringList(null), null);
             lens_dd.notify["selected"].connect(() => {
                 if (syncing) return;
                 filter.lens = lens_dd.selected == 0 || lens_dd.selected > lenses.length ? "" : lenses[lens_dd.selected - 1];
@@ -132,7 +132,7 @@ namespace Singularity.Apps.Photos {
             });
             row2.append(lens_dd);
 
-            keyword_dd = new DropDown(new StringList(null), null);
+            keyword_dd = new ChoiceButton(new StringList(null), null);
             keyword_dd.notify["selected"].connect(() => {
                 if (syncing) return;
                 filter.keyword_id = keyword_dd.selected == 0 || keyword_dd.selected > keyword_ids.length ? 0 : keyword_ids[keyword_dd.selected - 1];

@@ -315,16 +315,14 @@ namespace Singularity.Apps.Photos {
             }));
 
             var lens = section("optics", _("Lens Corrections"), true);
-            lens_switch = new Switch();
-            lens_switch.valign = Align.CENTER;
+            var lens_row = new SwitchRow(_("Profile Corrections"));
+            lens_switch = lens_row.switch_btn;
             lens_switch.notify["active"].connect(() => {
                 if (syncing) return;
                 host.record(_("Lens Profile"));
                 host.params.develop.set("lens.profile", lens_switch.active ? 1 : 0);
                 host.changed();
             });
-            var lens_row = new ActionRow(_("Profile Corrections"));
-            lens_row.add_suffix(lens_switch);
             lens.add(lens_row);
             lens_status = new Label("");
             lens_status.add_css_class("dim-label");
@@ -333,16 +331,14 @@ namespace Singularity.Apps.Photos {
             lens.add(DevelopControls.static_row(lens_status));
             lens.add(dev("lens.profile.distortion", _("Distortion Amount"), 100, (v) => "%d".printf((int) Math.round(v))));
             lens.add(dev("lens.profile.vignette", _("Vignetting Amount"), 100, (v) => "%d".printf((int) Math.round(v))));
-            ca_switch = new Switch();
-            ca_switch.valign = Align.CENTER;
+            var ca_row = new SwitchRow(_("Remove Chromatic Aberration"));
+            ca_switch = ca_row.switch_btn;
             ca_switch.notify["active"].connect(() => {
                 if (syncing) return;
                 host.record(_("Chromatic Aberration"));
                 host.params.develop.set("lens.ca", ca_switch.active ? 1 : 0);
                 host.changed();
             });
-            var ca_row = new ActionRow(_("Remove Chromatic Aberration"));
-            ca_row.add_suffix(ca_switch);
             lens.add(ca_row);
             lens.add(dev("lens.distortion", _("Manual Distortion")));
             lens.add(dev("lens.vignette", _("Manual Vignetting")));
@@ -371,16 +367,14 @@ namespace Singularity.Apps.Photos {
             cal.add(dev("calibration.blue.sat", _("Blue Primary Saturation")));
 
             var proof = section("proof", _("Soft Proofing"), true);
-            proof_switch = new Switch();
-            proof_switch.valign = Align.CENTER;
+            var proof_row = new SwitchRow(_("Soft Proof"));
+            proof_switch = proof_row.switch_btn;
             proof_switch.notify["active"].connect(() => {
                 if (syncing) return;
                 host.proof_enabled = proof_switch.active;
                 if (host.proof_profile_id == "") host.proof_profile_id = "srgb";
                 host.invalidate_display();
             });
-            var proof_row = new ActionRow(_("Soft Proof"));
-            proof_row.add_suffix(proof_switch);
             proof.add(proof_row);
             string[] labels = {};
             foreach (var id in IccProfile.builtin_ids()) {
@@ -411,15 +405,13 @@ namespace Singularity.Apps.Photos {
                 host.invalidate_display();
             });
             proof.add(proof_intent);
-            gamut_switch = new Switch();
-            gamut_switch.valign = Align.CENTER;
+            var gamut_row = new SwitchRow(_("Gamut Warning"));
+            gamut_switch = gamut_row.switch_btn;
             gamut_switch.notify["active"].connect(() => {
                 if (syncing) return;
                 host.gamut_warning = gamut_switch.active;
                 host.invalidate_display();
             });
-            var gamut_row = new ActionRow(_("Gamut Warning"));
-            gamut_row.add_suffix(gamut_switch);
             proof.add(gamut_row);
 
             var reset = new PreferencesGroup(_("Reset"), _("Restores every adjustment and keeps the filter."));
@@ -715,12 +707,10 @@ namespace Singularity.Apps.Photos {
                 rebuild_list();
             });
             props.add_row(name_row);
-            overlay_switch = new Switch();
+            var overlay_row = new SwitchRow(_("Show Overlay"), _("Press O to toggle"));
+            overlay_switch = overlay_row.switch_btn;
             overlay_switch.active = true;
-            overlay_switch.valign = Align.CENTER;
             overlay_switch.notify["active"].connect(() => host.canvas.show_overlay = overlay_switch.active);
-            var overlay_row = new ActionRow(_("Show Overlay"), _("Press O to toggle"));
-            overlay_row.add_suffix(overlay_switch);
             props.add_row(overlay_row);
             props.add_row(c.slider(_("Amount"), 0, 2, 1, 100, () => local() != null ? local().amount : 1, (v) => { if (local() != null) local().amount = v; }, (v) => "%d".printf((int) Math.round(v))));
             selected_box.append(props);
@@ -742,11 +732,9 @@ namespace Singularity.Apps.Photos {
             var size = tool_controls.slider(_("Size"), 0.003, 0.2, 0.03, 100, () => brush_radius, (v) => brush_radius = v, (v) => "%.1f".printf(v), 0.001);
             var feather = tool_controls.slider(_("Feather"), 0, 1, 0.5, 100, () => brush_feather, (v) => brush_feather = v);
             var flow_row = tool_controls.slider(_("Flow"), 0.05, 1, 1, 100, () => brush_flow, (v) => brush_flow = v);
-            erase_switch = new Switch();
-            erase_switch.valign = Align.CENTER;
+            var erase_row = new SwitchRow(_("Erase"));
+            erase_switch = erase_row.switch_btn;
             erase_switch.notify["active"].connect(() => host.canvas.brush_erase = erase_switch.active);
-            var erase_row = new ActionRow(_("Erase"));
-            erase_row.add_suffix(erase_switch);
             foreach (var r in new Widget[] { size, feather, flow_row, erase_row }) {
                 tool_group.add_row(r);
                 brush_rows.add(r);
@@ -1345,11 +1333,9 @@ namespace Singularity.Apps.Photos {
             var group = new PreferencesGroup(_("Settings to Include"));
             var switches = new Gee.HashMap<string, Switch>();
             foreach (var g in SettingsClipboard.GROUPS) {
-                var sw = new Switch();
+                var row = new SwitchRow(SettingsClipboard.label(g));
+                var sw = row.switch_btn;
                 sw.active = g != "crop" && g != "spots" && g != "masks";
-                sw.valign = Align.CENTER;
-                var row = new ActionRow(SettingsClipboard.label(g));
-                row.add_suffix(sw);
                 group.add_row(row);
                 switches[g] = sw;
             }

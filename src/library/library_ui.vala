@@ -74,9 +74,9 @@ namespace Singularity.Apps.Photos {
             dlg.open_dialog();
         }
 
-        public DropDown string_dropdown(string[] labels, int selected = 0) {
+        public ChoiceButton string_dropdown(string[] labels, int selected = 0) {
             var model = new StringList(labels);
-            var dd = new DropDown(model, null);
+            var dd = new ChoiceButton(model, null);
             dd.selected = selected.clamp(0, int.max(0, labels.length - 1));
             dd.valign = Align.CENTER;
             return dd;

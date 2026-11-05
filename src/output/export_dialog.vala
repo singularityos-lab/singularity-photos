@@ -5,8 +5,8 @@ namespace Singularity.Apps.Photos {
 
     public class OutputRows : Object {
 
-        public static DropDown dropdown(string[] labels, int active) {
-            var dd = new DropDown.from_strings(labels);
+        public static ChoiceButton dropdown(string[] labels, int active) {
+            var dd = new ChoiceButton.from_strings(labels);
             dd.selected = (uint) active.clamp(0, labels.length - 1);
             dd.valign = Align.CENTER;
             return dd;

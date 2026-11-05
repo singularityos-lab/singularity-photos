@@ -35,8 +35,8 @@ namespace Singularity.Apps.Photos {
         private Spinner spinner;
         private Box controls;
         private Button play_button;
-        private DropDown transition_dd;
-        private DropDown caption_dd;
+        private ChoiceButton transition_dd;
+        private ChoiceButton caption_dd;
         private SpinButton seconds_spin;
         private Button music_button;
         private ProgressBar export_progress;
