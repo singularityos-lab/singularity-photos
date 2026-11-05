@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=dev.sinty.photos
+Exec=@bindir@/singularity-photos --gapplication-service

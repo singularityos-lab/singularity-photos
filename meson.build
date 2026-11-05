@@ -129,3 +129,13 @@ install_data('data/dev.sinty.photos.json',
 install_data('data/icons/dev.sinty.photos.svg',
   install_dir: get_option('datadir') / 'icons' / 'hicolor' / 'scalable' / 'apps'
 )
+
+photos_service_conf = configuration_data()
+photos_service_conf.set('bindir', get_option('prefix') / get_option('bindir'))
+configure_file(
+  input: 'data/dev.sinty.photos.service.in',
+  output: 'dev.sinty.photos.service',
+  configuration: photos_service_conf,
+  install: true,
+  install_dir: get_option('datadir') / 'dbus-1' / 'services'
+)
