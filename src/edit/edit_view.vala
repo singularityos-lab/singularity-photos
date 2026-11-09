@@ -528,11 +528,11 @@ row.photo-edit-list-row.selected-mask {
             var src = photo;
             busy = true;
             spinner.spinning = true;
-            new Thread<void>("photo-upright", () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 var img = DevelopPipeline.render(src, p, new RenderOptions.preview(1024));
                 double v, h, r;
                 Upright.solve(img, mode, out v, out h, out r);
-                Idle.add(() => {
+                return () => {
                     busy = false;
                     spinner.spinning = false;
                     params.develop.set("transform.vertical", v);
@@ -540,8 +540,7 @@ row.photo-edit-list-row.selected-mask {
                     params.develop.set("transform.rotate", r);
                     changed();
                     if (v.abs() < 1e-6 && h.abs() < 1e-6 && r.abs() < 1e-6) message(_("No lines to straighten were found"));
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -841,7 +840,7 @@ row.photo-edit-list-row.selected-mask {
             busy = true;
             spinner.spinning = true;
             var f = file;
-            new Thread<void>("photo-edit-load", () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 DecodedPhoto? decoded = null;
                 string? error = null;
                 try {
@@ -849,13 +848,13 @@ row.photo-edit-list-row.selected-mask {
                 } catch (Error e) {
                     error = e.message;
                 }
-                Idle.add(() => {
+                return () => {
                     busy = false;
                     spinner.spinning = false;
                     if (decoded == null) {
                         message(_("This photo cannot be edited: %s").printf(error ?? ""));
                         finished(false);
-                        return Source.REMOVE;
+                        return;
                     }
                     photo = decoded;
                     if (photo.is_raw() && EditStore.find_sidecar(file, variant) == null && !EditStore.has_edits(file, variant)
@@ -868,8 +867,7 @@ row.photo-edit-list-row.selected-mask {
                     sync_controls();
                     schedule_render();
                     render_filter_thumbnails();
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -878,7 +876,7 @@ row.photo-edit-list-row.selected-mask {
             base_params.reset_color();
             base_params.filter = "none";
             var src = photo;
-            new Thread<void>("photo-edit-filters", () => {
+            Async.dispatch(this, Async.Qos.INTERACTIVE, (c) => {
                 var small_cache = new DevelopCache();
                 var results = new Gee.HashMap<string, Gdk.Texture>();
                 foreach (unowned FilterPreset f in FilterPreset.all()) {
@@ -887,13 +885,12 @@ row.photo-edit-list-row.selected-mask {
                     var img = DevelopPipeline.render(src, p, new RenderOptions.preview(THUMB_SIDE * 2), small_cache);
                     results[f.id] = WorkingSpace.to_display_texture(img);
                 }
-                Idle.add(() => {
+                return () => {
                     foreach (var entry in results.entries) {
                         var pic = filter_pictures[entry.key];
                         if (pic != null) pic.paintable = entry.value;
                     }
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -948,7 +945,7 @@ row.photo-edit-list-row.selected-mask {
             if (current_page() == "masks") overlay_local = masks_panel.active_local();
             var c = cache;
             var bc = before_cache;
-            new Thread<void>("photo-edit-render", () => {
+            Async.dispatch(this, Async.Qos.INTERACTIVE, (cancellable) => {
                 var o = new RenderOptions.preview(PREVIEW_SIDE);
                 o.crop = !crop_mode;
                 var result = DevelopPipeline.render_full(src, p, o, c);
@@ -978,7 +975,7 @@ row.photo-edit-list-row.selected-mask {
                     }
                     overlay = new Gdk.MemoryTexture(result.image.width, result.image.height, Gdk.MemoryFormat.R8G8B8A8, new Bytes(ov), result.image.width * 4);
                 }
-                Idle.add(() => {
+                return () => {
                     rendering = false;
                     if (gen == render_generation) {
                         last_result = result;
@@ -991,8 +988,7 @@ row.photo-edit-list-row.selected-mask {
                         rendered();
                     }
                     if (render_pending) schedule_render();
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -1029,14 +1025,13 @@ row.photo-edit-list-row.selected-mask {
             var p = params.copy();
             var f = file;
             string v = variant;
-            new Thread<void>("photo-edit-save", () => {
+            Async.dispatch(null, Async.Qos.USER, (c) => {
                 if (!p.is_identity() || Codecs.is_raw_name(f.get_basename() ?? "")) EditImageIO.render_to_cache(f, p, v);
-                Idle.add(() => {
+                return () => {
                     busy = false;
                     spinner.spinning = false;
                     finished(true);
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -1049,7 +1044,7 @@ row.photo-edit-list-row.selected-mask {
             string name = (f.get_basename() ?? "").down();
             bool png = name.has_suffix(".png");
             var target = EditStore.copy_target(f, png ? ".png" : ".jpg");
-            new Thread<void>("photo-edit-copy", () => {
+            Async.dispatch(null, Async.Qos.USER, (c) => {
                 string? error = null;
                 try {
                     var full = Codecs.load(f, 0);
@@ -1058,13 +1053,12 @@ row.photo-edit-list-row.selected-mask {
                 } catch (Error e) {
                     error = e.message;
                 }
-                Idle.add(() => {
+                return () => {
                     busy = false;
                     spinner.spinning = false;
                     if (error != null) message(_("Could not save: %s").printf(error));
                     else message(_("Saved as %s").printf(target.get_basename()));
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 

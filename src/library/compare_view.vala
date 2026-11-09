@@ -66,16 +66,15 @@ namespace Singularity.Apps.Photos {
             }
             append(bar);
             var file = record.file();
-            new Thread<void>("photos-compare-load", () => {
+            Async.dispatch(this, Async.Qos.INTERACTIVE, (c) => {
                 Gdk.Texture? tex = null;
                 try {
                     tex = EditImageIO.load_display_texture(file);
                 } catch (Error e) {
                 }
-                Idle.add(() => {
+                return () => {
                     picture.paintable = tex;
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 

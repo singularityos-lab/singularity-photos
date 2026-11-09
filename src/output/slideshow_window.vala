@@ -181,7 +181,7 @@ namespace Singularity.Apps.Photos {
             spinner.visible = true;
             var s = spec;
             var list = files;
-            new Thread<void>("photos-slideshow", () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 var comp = new SlideCompositor(s, 1920, 1080);
                 foreach (var f in list) {
                     try {
@@ -190,14 +190,13 @@ namespace Singularity.Apps.Photos {
                         warning("Photos: slideshow skipped %s: %s", f.get_path(), e.message);
                     }
                 }
-                Idle.add(() => {
-                    if (serial != load_serial) return Source.REMOVE;
+                return () => {
+                    if (serial != load_serial) return;
                     spinner.spinning = false;
                     spinner.visible = false;
                     stage.compositor = comp;
                     stage.queue_draw();
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -292,23 +291,21 @@ namespace Singularity.Apps.Photos {
             export_progress.fraction = 0;
             export_progress.text = _("Exporting video…");
             var list = files;
-            new Thread<void>("photos-slideshow-video", () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 string? error = null;
                 try {
                     SlideshowVideo.export(list, copy, 1920, 1080, 30, container, path, null, (f) => {
-                        Idle.add(() => {
+                        Async.post(this, () => {
                             export_progress.fraction = f;
-                            return Source.REMOVE;
                         });
                     });
                 } catch (Error e) {
                     error = e.message;
                 }
-                Idle.add(() => {
+                return () => {
                     export_progress.visible = false;
                     OutputRows.toast(parent_window, error == null ? _("Saved %s").printf(Path.get_basename(path)) : _("Could not export the video: %s").printf(error));
-                    return Source.REMOVE;
-                });
+                };
             });
         }
     }

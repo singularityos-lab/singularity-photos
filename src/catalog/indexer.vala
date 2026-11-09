@@ -186,12 +186,12 @@ namespace Singularity.Apps.Photos {
             cancellable = new Cancellable();
             var c = cancellable;
             File[] scan_roots = roots;
-            new Thread<void>("photos-index", () => {
+            Async.dispatch(this, Async.Qos.UTILITY, (job_cancellable) => {
                 var background = Singularity.BackgroundWork.enter();
                 var files = new Gee.ArrayList<IndexedFile>();
                 foreach (var root in scan_roots) walk(root, files, c);
                 background.finish();
-                Idle.add(() => {
+                return () => {
                     if (!c.is_cancelled()) {
                         for (int i = 0; i < files.size; i += BATCH) {
                             var chunk = files.slice(i, int.min(files.size, i + BATCH));
@@ -200,8 +200,7 @@ namespace Singularity.Apps.Photos {
                         mark_missing_under(files, scan_roots);
                     }
                     read_metadata_async(c);
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -237,28 +236,40 @@ namespace Singularity.Apps.Photos {
                 paths[i] = todo[i].path;
                 mtimes[i] = todo[i].mtime;
             }
-            new Thread<void>("photos-meta", () => {
-                var background = Singularity.BackgroundWork.enter();
-                var batch = new Gee.ArrayList<IndexedMetadata>();
+            var feed = Async.Feed.spawn((f, job_cancellable) => {
+                var batch = new MetadataBatch();
                 for (int i = 0; i < total && !c.is_cancelled(); i++) {
-                    batch.add(read_metadata(ids[i], paths[i], mtimes[i]));
-                    if (batch.size >= 100 || i == total - 1) {
-                        var send = batch;
-                        batch = new Gee.ArrayList<IndexedMetadata>();
-                        int reached = i + 1;
-                        Idle.add(() => {
-                            apply_metadata(send);
-                            progress(reached, total);
-                            return Source.REMOVE;
-                        });
+                    batch.items.add(read_metadata(ids[i], paths[i], mtimes[i]));
+                    if (batch.items.size >= 100 || i == total - 1) {
+                        batch.reached = i + 1;
+                        f.push(batch);
+                        batch = new MetadataBatch();
                     }
                 }
-                background.finish();
-                Idle.add(() => {
-                    done();
-                    return Source.REMOVE;
-                });
-            });
+            }, Async.Qos.BACKGROUND, c);
+            apply_feed.begin(feed, total);
+        }
+
+        private class MetadataBatch : Object {
+            public Gee.ArrayList<IndexedMetadata> items = new Gee.ArrayList<IndexedMetadata>();
+            public int reached;
+        }
+
+        private async void apply_feed(Async.Feed feed, int total) {
+            while (true) {
+                GenericArray<Object>? batches = null;
+                try {
+                    batches = yield feed.next();
+                } catch (Error e) {
+                }
+                if (batches == null) break;
+                foreach (var item in batches.data) {
+                    var batch = (MetadataBatch) item;
+                    apply_metadata(batch.items);
+                    progress(batch.reached, total);
+                }
+            }
+            done();
         }
 
         private void done() {

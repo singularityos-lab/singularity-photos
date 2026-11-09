@@ -136,7 +136,7 @@ namespace SingularityPhotosWidget {
             // starts empty and fills in when the worker finishes.
             int dw = int.max(64, cover_w);
             int dh = int.max(64, cover_h);
-            new GLib.Thread<void>("photo-fav-decode", () => {
+            Async.dispatch(this, Async.Qos.INTERACTIVE, (c) => {
                 Gdk.Pixbuf? pb = null;
                 if (fs_path != null && FileUtils.test(fs_path, FileTest.EXISTS)) {
                     try {
@@ -146,10 +146,9 @@ namespace SingularityPhotosWidget {
                     }
                 }
                 Gdk.Pixbuf? ready = pb;
-                GLib.Idle.add(() => {
+                return () => {
                     if (ready != null) pic.set_paintable(Gdk.Texture.for_pixbuf(ready));
-                    return GLib.Source.REMOVE;
-                });
+                };
             });
             var click = new GestureClick();
             click.pressed.connect((n, x, y) => {

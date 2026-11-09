@@ -489,7 +489,7 @@ namespace Singularity.Apps.Photos {
             var p = host.params.copy();
             double lx = loupe_x, ly = loupe_y;
             var file = host.file;
-            new Thread<void>("photo-loupe", () => {
+            Async.dispatch(this, Async.Qos.INTERACTIVE, (c) => {
                 try {
                     var full = photo.image.width >= photo.full_width ? photo : Codecs.load(file, 0);
                     var g = new GeometryMap(p, full.full_width, full.full_height, 0, false);
@@ -501,12 +501,12 @@ namespace Singularity.Apps.Photos {
                     region.set_crop((ox - size / 2) / w, (oy - size / 2) / h, size / w, size / h);
                     var img = DevelopPipeline.render(full, region, new RenderOptions());
                     var tex = WorkingSpace.to_display_texture(img);
-                    Idle.add(() => {
+                    return () => {
                         loupe.paintable = tex;
-                        return Source.REMOVE;
-                    });
+                    };
                 } catch (Error e) {
                     warning("Photos: loupe: %s", e.message);
+                    return null;
                 }
             });
         }

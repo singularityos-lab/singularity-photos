@@ -251,7 +251,7 @@ namespace Singularity.Apps.Photos {
             if (thumb_pending.contains(r.path) || thumb_pending.size > 8) return null;
             thumb_pending.add(r.path);
             string path = r.path;
-            new Thread<void>("photos-map-thumb", () => {
+            Async.dispatch(this, Async.Qos.UTILITY, (c) => {
                 Gdk.Texture? tex = null;
                 try {
                     var shown = EditImageIO.display_file(File.new_for_path(path));
@@ -259,12 +259,11 @@ namespace Singularity.Apps.Photos {
                     tex = Gdk.Texture.for_pixbuf(pb);
                 } catch (Error e) {
                 }
-                Idle.add(() => {
+                return () => {
                     thumb_pending.remove(path);
                     if (tex != null) thumbs[path] = tex;
                     queue_draw();
-                    return Source.REMOVE;
-                });
+                };
             });
             return null;
         }

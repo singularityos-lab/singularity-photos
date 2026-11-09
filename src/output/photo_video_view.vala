@@ -130,7 +130,7 @@ namespace Singularity.Apps.Photos {
             view.playback.pause();
             var source = current;
             int64 a = (int64) (start_scale.get_value() * Gst.SECOND), b = (int64) (end_scale.get_value() * Gst.SECOND);
-            new Thread<void>("photos-video-trim", () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 File? result = null;
                 string? error = null;
                 try {
@@ -138,7 +138,7 @@ namespace Singularity.Apps.Photos {
                 } catch (Error e) {
                     error = e.message;
                 }
-                Idle.add(() => {
+                return () => {
                     busy = false;
                     spinner.spinning = false;
                     update_range();
@@ -149,8 +149,7 @@ namespace Singularity.Apps.Photos {
                     } else {
                         message(_("Could not trim the video: %s").printf(error ?? ""));
                     }
-                    return Source.REMOVE;
-                });
+                };
             });
         }
     }

@@ -256,11 +256,11 @@ namespace Singularity.Apps.Photos {
             spinner.spinning = true;
             count_label.label = _("Looking for photos…");
             import_btn.sensitive = false;
-            new Thread<void>("photos-import-scan", () => {
+            Async.dispatch(null, Async.Qos.UTILITY, (cancellable) => {
                 var found = PhotoImporter.scan_source(source);
                 foreach (var cand in found) cand.hash = Catalog.file_hash(cand.file.get_path()) ?? "";
-                Idle.add(() => {
-                    if (serial != scan_serial || dlg == null) return Source.REMOVE;
+                return () => {
+                    if (serial != scan_serial || dlg == null) return;
                     spinner.spinning = false;
                     foreach (var cand in found) {
                         cand.duplicate = cand.hash != "" && catalog.find_duplicate(cand.hash, cand.size) != null;
@@ -270,8 +270,7 @@ namespace Singularity.Apps.Photos {
                     }
                     update_count();
                     update_preview();
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -312,7 +311,7 @@ namespace Singularity.Apps.Photos {
             name.max_width_chars = 14;
             box.append(name);
             string path = cand.file.get_path();
-            new Thread<void>("photos-import-thumb", () => {
+            Async.dispatch(null, Async.Qos.UTILITY, (c) => {
                 var background = Singularity.BackgroundWork.enter(pic);
                 Gdk.Texture? tex = null;
                 try {
@@ -321,10 +320,9 @@ namespace Singularity.Apps.Photos {
                 } catch (Error e) {
                 }
                 background.finish();
-                Idle.add(() => {
+                return () => {
                     if (tex != null) pic.paintable = tex;
-                    return Source.REMOVE;
-                });
+                };
             });
             return box;
         }

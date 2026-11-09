@@ -43,7 +43,7 @@ namespace Singularity.Apps.Photos {
                 files.add(r.file());
                 variants.add(r.variant());
             }
-            new Thread<void>("photos-merge", () => {
+            Async.dispatch(null, Async.Qos.USER, (c) => {
                 File? result = null;
                 string? err = null;
                 try {
@@ -61,17 +61,15 @@ namespace Singularity.Apps.Photos {
                         if (kind == "hdr") o.highlight_mode = "clip";
                         images += DevelopPipeline.render(photo, p ?? new EditParams(), o);
                         int step = i + 1;
-                        Idle.add(() => {
+                        Async.post(null, () => {
                             progress(0.3 * step / files.size, _("Loading photos"));
-                            return Source.REMOVE;
                         });
                     }
                     MergeProgress relay = (frac, stage) => {
                         string s = stage;
                         double v = 0.3 + frac * 0.65;
-                        Idle.add(() => {
+                        Async.post(null, () => {
                             progress(v, s);
-                            return Source.REMOVE;
                         });
                     };
                     FloatImage merged;
@@ -87,10 +85,9 @@ namespace Singularity.Apps.Photos {
                 } catch (Error e) {
                     err = e.matches(IOError.quark(), IOError.NOT_SUPPORTED) ? _("%s is not available on this system yet").printf(title(kind)) : e.message;
                 }
-                Idle.add(() => {
+                return () => {
                     done(result, err);
-                    return Source.REMOVE;
-                });
+                };
             });
         }
     }

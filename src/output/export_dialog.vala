@@ -558,19 +558,17 @@ namespace Singularity.Apps.Photos {
             progress.visible = true;
             progress.fraction = 0;
             summary.visible = false;
-            new Thread<void>("photos-export", () => {
+            Async.dispatch(null, Async.Qos.USER, (c) => {
                 var results = ExportEngine.run(list, s, cancellable, (done, total, current) => {
-                    Idle.add(() => {
+                    Async.post(this, () => {
                         progress.fraction = total > 0 ? (double) done / total : 1;
                         progress.text = current.get_basename();
-                        return Source.REMOVE;
                     });
                 });
-                Idle.add(() => {
+                return () => {
                     if (s.plugin_destination != "") deliver.begin(results, s, cancellable);
                     else finish(results, cancellable.is_cancelled());
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 

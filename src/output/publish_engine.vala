@@ -110,12 +110,14 @@ namespace Singularity.Apps.Photos {
                     continue;
                 }
                 ExportResult? result = null;
-                SourceFunc resume = run.callback;
-                new Thread<void>("photos-publish", () => {
-                    result = ExportEngine.export_one(f, export_settings, done + 1, files.length);
-                    Idle.add((owned) resume);
-                });
-                yield;
+                try {
+                    yield Async.run<bool>((c) => {
+                        result = ExportEngine.export_one(f, export_settings, done + 1, files.length);
+                        return true;
+                    }, Async.Qos.USER);
+                } catch (Error e) {
+                    warning("%s", e.message);
+                }
                 if (!result.ok) {
                     report.errors.add("%s: %s".printf(f.get_basename(), result.error));
                     done++;

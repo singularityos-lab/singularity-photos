@@ -337,7 +337,7 @@ label.photo-retouch-zoom {
             busy = true;
             spinner.spinning = true;
             var f = file;
-            new Thread<void>("photo-retouch-load", () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 RetouchDocument? doc = null;
                 string? error = null;
                 try {
@@ -345,17 +345,16 @@ label.photo-retouch-zoom {
                 } catch (Error e) {
                     error = e.message;
                 }
-                Idle.add(() => {
+                return () => {
                     busy = false;
                     spinner.spinning = false;
                     if (doc == null) {
                         message(_("This photo cannot be retouched: %s").printf(error ?? ""));
                         finished(false);
-                        return Source.REMOVE;
+                        return;
                     }
                     install_document(doc);
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -631,7 +630,7 @@ label.photo-retouch-zoom {
             if (document == null) return;
             busy = true;
             spinner.spinning = true;
-            new Thread<void>("photo-retouch-place", () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 FloatImage? img = null;
                 string edit = "";
                 try {
@@ -643,12 +642,12 @@ label.photo-retouch-zoom {
                 } catch (Error e) {
                     warning("Retouch: %s", e.message);
                 }
-                Idle.add(() => {
+                return () => {
                     busy = false;
                     spinner.spinning = false;
                     if (img == null) {
                         message(_("This photo cannot be placed"));
-                        return Source.REMOVE;
+                        return;
                     }
                     document.record_structure(_("Place Photo"));
                     var layer = new RetouchLayer(source.get_basename() ?? _("Photo"), RetouchLayerKind.EMBEDDED);
@@ -661,8 +660,7 @@ label.photo-retouch-zoom {
                     layer.y = (document.height - layer.pixels.height) / 2;
                     document.add_layer(layer, controller.active);
                     after_structure(layer);
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -1277,14 +1275,13 @@ label.photo-retouch-zoom {
             if (busy) return;
             busy = true;
             spinner.spinning = true;
-            new Thread<void>("photo-retouch-" + label, () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 work();
-                Idle.add(() => {
+                return () => {
                     busy = false;
                     spinner.spinning = false;
                     done();
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 

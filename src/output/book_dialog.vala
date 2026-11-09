@@ -122,7 +122,7 @@ namespace Singularity.Apps.Photos {
             int page = current;
             double pw, ph;
             book.page_size(out pw, out ph);
-            new Thread<void>("photos-book-page", () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 double scale = 900.0 / double.max(pw, ph);
                 var surface = new Cairo.ImageSurface(Cairo.Format.RGB24, (int) (pw * scale), (int) (ph * scale));
                 var cr = new Cairo.Context(surface);
@@ -134,12 +134,11 @@ namespace Singularity.Apps.Photos {
                 unowned uint8[] px = surface.get_data();
                 var bytes = new Bytes(px[0:surface.get_stride() * surface.get_height()]);
                 var texture = new Gdk.MemoryTexture(surface.get_width(), surface.get_height(), Gdk.MemoryFormat.B8G8R8X8, bytes, surface.get_stride());
-                Idle.add(() => {
-                    if (serial != render_serial) return Source.REMOVE;
+                return () => {
+                    if (serial != render_serial) return;
                     spinner.spinning = false;
                     preview.paintable = texture;
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 

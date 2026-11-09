@@ -200,8 +200,9 @@ namespace Singularity.Apps.Photos {
                     r.edited = !p.is_identity ();
                     catalog ().save (r);
                     var copy = p.copy ();
-                    new Thread<void> ("photo-agent-render", () => {
+                    Async.dispatch(null, Async.Qos.INTERACTIVE, (c) => {
                         EditImageIO.render_to_cache (file, copy);
+                        return null;
                     });
                     var o = brief (r);
                     o.set_object_member ("applied", applied);

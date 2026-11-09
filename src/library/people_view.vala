@@ -221,7 +221,7 @@ namespace Singularity.Apps.Photos {
             if (r == null) return;
             string path = r.path;
             double fx = face.x, fy = face.y, fw = face.width, fh = face.height;
-            new Thread<void>("photos-face-thumb", () => {
+            Async.dispatch(this, Async.Qos.UTILITY, (c) => {
                 Gdk.Texture? tex = null;
                 try {
                     var pb = EditImageIO.scaled(path, 900, 900);
@@ -234,10 +234,9 @@ namespace Singularity.Apps.Photos {
                     tex = Gdk.Texture.for_pixbuf(new Gdk.Pixbuf.subpixbuf(pb, x + (w - side) / 2, y + (h - side) / 2, side, side).scale_simple(192, 192, Gdk.InterpType.BILINEAR));
                 } catch (Error e) {
                 }
-                Idle.add(() => {
+                return () => {
                     pic.set_from_paintable(tex);
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -272,7 +271,7 @@ namespace Singularity.Apps.Photos {
                 ids[i] = todo[i].id;
                 paths[i] = todo[i].path;
             }
-            new Thread<void>("photos-faces", () => {
+            Async.dispatch(this, Async.Qos.UTILITY, (cancellable) => {
                 var background = Singularity.BackgroundWork.enter(status);
                 int found = 0;
                 for (int i = 0; i < total && !c.is_cancelled(); i++) {
@@ -291,26 +290,24 @@ namespace Singularity.Apps.Photos {
                     found += res.boxes.length;
                     int done = i + 1;
                     int so_far = found;
-                    Idle.add(() => {
+                    Async.post(this, () => {
                         var r = catalog.photos[res.photo_id];
                         if (r != null) {
                             for (int k = 0; k < res.boxes.length; k++) catalog.add_face(r, res.boxes[k], res.descriptors[k].values);
                             catalog.mark_faces_scanned(r);
                         }
                         status.label = _("Scanning %d of %d photos, %d faces found").printf(done, total, so_far);
-                        return Source.REMOVE;
                     });
                 }
                 background.finish();
-                Idle.add(() => {
+                return () => {
                     scanning = false;
                     scan_btn.label = _("Find People");
                     spinner.spinning = false;
                     PeopleClustering.cluster(catalog, CLUSTER_THRESHOLD);
                     refresh();
                     if (catalog.faces.size == 0 && !quiet) message(_("No faces were found"));
-                    return Source.REMOVE;
-                });
+                };
             });
         }
     }
@@ -444,7 +441,7 @@ namespace Singularity.Apps.Photos {
             if (r != null) {
                 string path = r.path;
                 double fx = face.x, fy = face.y, fw = face.width, fh = face.height;
-                new Thread<void>("photos-face-crop", () => {
+                Async.dispatch(this, Async.Qos.INTERACTIVE, (c) => {
                     Gdk.Texture? tex = null;
                     try {
                         var pb = EditImageIO.scaled(path, 900, 900);
@@ -457,10 +454,9 @@ namespace Singularity.Apps.Photos {
                     tex = Gdk.Texture.for_pixbuf(new Gdk.Pixbuf.subpixbuf(pb, x + (w - side) / 2, y + (h - side) / 2, side, side).scale_simple(192, 192, Gdk.InterpType.BILINEAR));
                     } catch (Error e) {
                     }
-                    Idle.add(() => {
+                    return () => {
                         pic.set_from_paintable(tex);
-                        return Source.REMOVE;
-                    });
+                    };
                 });
             }
             return box;

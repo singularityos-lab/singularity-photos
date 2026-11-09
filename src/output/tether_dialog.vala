@@ -118,9 +118,9 @@ namespace Singularity.Apps.Photos {
 
         private void refresh() {
             status.label = _("Looking for cameras…");
-            new Thread<void>("photos-tether-detect", () => {
+            Async.dispatch(this, Async.Qos.UTILITY, (cancellable) => {
                 var found = TetherSession.detect();
-                Idle.add(() => {
+                return () => {
                     cameras = found;
                     string[] names = {};
                     foreach (var c in cameras) names += c.model;
@@ -129,8 +129,7 @@ namespace Singularity.Apps.Photos {
                     capture_button.visible = cameras.size > 0;
                     status.label = _("Ready");
                     if (cameras.size > 0) probe();
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -142,7 +141,7 @@ namespace Singularity.Apps.Photos {
         private void probe() {
             if (cameras.size == 0) return;
             var s = current_session();
-            new Thread<void>("photos-tether-probe", () => {
+            Async.dispatch(this, Async.Qos.UTILITY, (c) => {
                 bool capture = false, preview = false;
                 string? error = null;
                 try {
@@ -151,13 +150,12 @@ namespace Singularity.Apps.Photos {
                 } catch (Error e) {
                     error = e.message;
                 }
-                Idle.add(() => {
+                return () => {
                     capture_button.visible = capture;
                     live_row.visible = preview;
                     if (error != null) status.label = error;
                     else if (!capture) status.label = _("This camera cannot be triggered from the computer; its photos can still be imported");
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -172,7 +170,7 @@ namespace Singularity.Apps.Photos {
             live_id = Timeout.add(125, () => {
                 if (live_busy || busy) return Source.CONTINUE;
                 live_busy = true;
-                new Thread<void>("photos-tether-live", () => {
+                Async.dispatch(this, Async.Qos.USER, (c) => {
                     Gdk.Texture? frame = null;
                     string? error = null;
                     try {
@@ -180,15 +178,14 @@ namespace Singularity.Apps.Photos {
                     } catch (Error e) {
                         error = e.message;
                     }
-                    Idle.add(() => {
+                    return () => {
                         live_busy = false;
                         if (frame != null) last_shot.paintable = frame;
                         else if (error != null) {
                             status.label = error;
                             live_row.active = false;
                         }
-                        return Source.REMOVE;
-                    });
+                    };
                 });
                 return Source.CONTINUE;
             });
@@ -201,7 +198,7 @@ namespace Singularity.Apps.Photos {
             var s = current_session();
             var dir = folder;
             string preset = preset_id();
-            new Thread<void>("photos-tether-import", () => {
+            Async.dispatch(null, Async.Qos.USER, (c) => {
                 Gee.List<File>? got = null;
                 string? error = null;
                 try {
@@ -209,7 +206,7 @@ namespace Singularity.Apps.Photos {
                 } catch (Error e) {
                     error = e.message;
                 }
-                Idle.add(() => {
+                return () => {
                     busy = false;
                     if (error != null) {
                         status.label = error;
@@ -218,8 +215,7 @@ namespace Singularity.Apps.Photos {
                     } else {
                         foreach (var f in got) imported(f);
                     }
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -245,16 +241,15 @@ namespace Singularity.Apps.Photos {
         private void imported(File file) {
             captured++;
             status.label = ngettext("%d photo captured, last %s", "%d photos captured, last %s", captured).printf(captured, file.get_basename());
-            new Thread<void>("photos-tether-thumb", () => {
+            Async.dispatch(this, Async.Qos.UTILITY, (c) => {
                 Gdk.Texture? tex = null;
                 try {
                     tex = OutputRender.thumbnail(file, 900);
                 } catch (Error e) {
                 }
-                Idle.add(() => {
+                return () => {
                     if (tex != null) last_shot.paintable = tex;
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -266,7 +261,7 @@ namespace Singularity.Apps.Photos {
             var s = current_session();
             var dir = folder;
             string preset = preset_id();
-            new Thread<void>("photos-tether-capture", () => {
+            Async.dispatch(null, Async.Qos.USER, (c) => {
                 File? shot = null;
                 string? error = null;
                 try {
@@ -275,13 +270,12 @@ namespace Singularity.Apps.Photos {
                 } catch (Error e) {
                     error = e.message;
                 }
-                Idle.add(() => {
+                return () => {
                     busy = false;
                     capture_button.sensitive = true;
                     if (error != null) status.label = error;
                     else imported(shot);
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -302,17 +296,15 @@ namespace Singularity.Apps.Photos {
                         var shot = s.wait(dir, 1000);
                         if (shot != null) {
                             TetherImport.apply_preset(shot, preset);
-                            Idle.add(() => {
+                            Async.post(this, () => {
                                 imported(shot);
-                                return Source.REMOVE;
                             });
                         }
                     } catch (Error e) {
                         string msg = e.message;
-                        Idle.add(() => {
+                        Async.post(this, () => {
                             status.label = msg;
                             watch_row.active = false;
-                            return Source.REMOVE;
                         });
                         break;
                     }

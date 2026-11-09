@@ -1218,7 +1218,7 @@ namespace Singularity.Apps.Photos {
             int px = size;
             string var_id = variant;
 
-            new GLib.Thread<void>("photo-thumb", () => {
+            Async.dispatch(this, Async.Qos.UTILITY, (c) => {
                 var background = Singularity.BackgroundWork.enter(img);
                 Gdk.Pixbuf? pb = null;
                 try {
@@ -1234,7 +1234,7 @@ namespace Singularity.Apps.Photos {
                     pb = EditImageIO.scaled(source, px, px);
                 } catch (Error e) {}
                 background.finish();
-                GLib.Idle.add(() => {
+                return () => {
                     string? expected = img.get_data<string>("thumb-for-path");
                     if (expected != null && expected == path) {
                         if (pb != null) {
@@ -1248,8 +1248,7 @@ namespace Singularity.Apps.Photos {
                             spinner.visible = false;
                         }
                     }
-                    return GLib.Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -1475,12 +1474,11 @@ namespace Singularity.Apps.Photos {
             if (photo is OnlinePhoto || (photo.record != null && photo.record.kind == "video")) return;
             uint serial = ++live_serial;
             var file = photo.file;
-            new GLib.Thread<void>("photo-live", () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 bool has = LivePhoto.playable_for(file) != null;
-                GLib.Idle.add(() => {
+                return () => {
                     if (serial == live_serial && live_btn != null) live_btn.visible = has;
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -1624,19 +1622,18 @@ namespace Singularity.Apps.Photos {
                 viewer_spinner.spinning = true;
                 return Source.REMOVE;
             });
-            new GLib.Thread<void>("photo-view", () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 Gdk.Texture? texture = null;
                 try {
                     texture = EditImageIO.load_display_texture(file);
                 } catch (Error e) {
                     warning("Viewer: %s", e.message);
                 }
-                GLib.Idle.add(() => {
-                    if (serial != viewer_load_serial) return Source.REMOVE;
+                return () => {
+                    if (serial != viewer_load_serial) return;
                     cancel_viewer_load();
                     viewer_picture.set_paintable(texture);
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 
@@ -1925,12 +1922,11 @@ namespace Singularity.Apps.Photos {
             var photo = current_photo();
             if (photo == null || !photo.file.query_exists()) return;
             var file = photo.file;
-            new GLib.Thread<void>("photo-markup", () => {
+            Async.dispatch(this, Async.Qos.USER, (c) => {
                 var source = EditImageIO.markup_source(file);
-                GLib.Idle.add(() => {
+                return () => {
                     present_markup(file, source);
-                    return Source.REMOVE;
-                });
+                };
             });
         }
 

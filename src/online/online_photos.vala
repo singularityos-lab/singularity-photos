@@ -613,13 +613,13 @@ namespace Singularity.Apps.Photos {
                 }
                 string path = thumb.get_path();
                 int px = size;
-                new GLib.Thread<void>("online-thumb", () => {
+                Async.dispatch(this, Async.Qos.UTILITY, (c) => {
                     Gdk.Pixbuf? pb = null;
                     try {
                         pb = new Gdk.Pixbuf.from_file_at_scale(path, px, px, true);
                     } catch (GLib.Error e) {
                     }
-                    GLib.Idle.add(() => {
+                    return () => {
                         if (img.get_data<string>("thumb-for-path") == key) {
                             if (pb != null) img.set_from_paintable(Gdk.Texture.for_pixbuf(pb));
                             else img.set_from_icon_name("image-x-generic-symbolic");
@@ -628,8 +628,7 @@ namespace Singularity.Apps.Photos {
                                 spinner.visible = false;
                             }
                         }
-                        return GLib.Source.REMOVE;
-                    });
+                    };
                 });
             });
         }
