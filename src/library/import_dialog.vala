@@ -313,12 +313,14 @@ namespace Singularity.Apps.Photos {
             box.append(name);
             string path = cand.file.get_path();
             new Thread<void>("photos-import-thumb", () => {
+                var background = Singularity.BackgroundWork.enter(pic);
                 Gdk.Texture? tex = null;
                 try {
                     var pb = EditImageIO.scaled(path, 240, 180);
                     tex = Gdk.Texture.for_pixbuf(pb);
                 } catch (Error e) {
                 }
+                background.finish();
                 Idle.add(() => {
                     if (tex != null) pic.paintable = tex;
                     return Source.REMOVE;

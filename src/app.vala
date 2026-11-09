@@ -1219,6 +1219,7 @@ namespace Singularity.Apps.Photos {
             string var_id = variant;
 
             new GLib.Thread<void>("photo-thumb", () => {
+                var background = Singularity.BackgroundWork.enter(img);
                 Gdk.Pixbuf? pb = null;
                 try {
                     string source = path;
@@ -1232,6 +1233,7 @@ namespace Singularity.Apps.Photos {
                     }
                     pb = EditImageIO.scaled(source, px, px);
                 } catch (Error e) {}
+                background.finish();
                 GLib.Idle.add(() => {
                     string? expected = img.get_data<string>("thumb-for-path");
                     if (expected != null && expected == path) {

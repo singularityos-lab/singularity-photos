@@ -273,6 +273,7 @@ namespace Singularity.Apps.Photos {
                 paths[i] = todo[i].path;
             }
             new Thread<void>("photos-faces", () => {
+                var background = Singularity.BackgroundWork.enter(status);
                 int found = 0;
                 for (int i = 0; i < total && !c.is_cancelled(); i++) {
                     var res = new FaceScanResult();
@@ -300,6 +301,7 @@ namespace Singularity.Apps.Photos {
                         return Source.REMOVE;
                     });
                 }
+                background.finish();
                 Idle.add(() => {
                     scanning = false;
                     scan_btn.label = _("Find People");

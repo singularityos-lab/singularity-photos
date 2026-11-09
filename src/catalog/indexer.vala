@@ -187,8 +187,10 @@ namespace Singularity.Apps.Photos {
             var c = cancellable;
             File[] scan_roots = roots;
             new Thread<void>("photos-index", () => {
+                var background = Singularity.BackgroundWork.enter();
                 var files = new Gee.ArrayList<IndexedFile>();
                 foreach (var root in scan_roots) walk(root, files, c);
+                background.finish();
                 Idle.add(() => {
                     if (!c.is_cancelled()) {
                         for (int i = 0; i < files.size; i += BATCH) {
@@ -236,6 +238,7 @@ namespace Singularity.Apps.Photos {
                 mtimes[i] = todo[i].mtime;
             }
             new Thread<void>("photos-meta", () => {
+                var background = Singularity.BackgroundWork.enter();
                 var batch = new Gee.ArrayList<IndexedMetadata>();
                 for (int i = 0; i < total && !c.is_cancelled(); i++) {
                     batch.add(read_metadata(ids[i], paths[i], mtimes[i]));
@@ -250,6 +253,7 @@ namespace Singularity.Apps.Photos {
                         });
                     }
                 }
+                background.finish();
                 Idle.add(() => {
                     done();
                     return Source.REMOVE;
