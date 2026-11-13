@@ -181,7 +181,7 @@ namespace Singularity.Apps.Photos {
                     unknown[y * w + x] = mv > 0.001f ? 1 : 0;
                     size_t di = img.offset(ix, iy);
                     size_t si = src.offset((ix + dx).clamp(0, src.width - 1), (iy + dy).clamp(0, src.height - 1));
-                    for (int c = 0; c < 3; c++) values[(y * w + x) * 3 + c] = img.data[di + c] - src.data[si + c];
+                    for (int c = 0; c < 3; c++) values[(y * w + x) * 3 + c] = Transfer.linear_to_srgb(img.data[di + c]) - Transfer.linear_to_srgb(src.data[si + c]);
                 }
             }
             membrane(values, 3, unknown, w, h);
@@ -192,8 +192,16 @@ namespace Singularity.Apps.Photos {
                     int ix = bx + x, iy = by + y;
                     size_t di = img.offset(ix, iy);
                     size_t si = src.offset((ix + dx).clamp(0, src.width - 1), (iy + dy).clamp(0, src.height - 1));
+                    float e[3];
+                    for (int c = 0; c < 3; c++) e[c] = Transfer.linear_to_srgb(src.data[si + c]) + values[(y * w + x) * 3 + c];
+                    float lo = float.min(e[0], float.min(e[1], e[2]));
+                    if (lo < 0) {
+                        float mean = float.max(0, (e[0] + e[1] + e[2]) / 3);
+                        float t = mean > lo ? (-lo) / (mean - lo) : 1;
+                        for (int c = 0; c < 3; c++) e[c] += t.clamp(0, 1) * (mean - e[c]);
+                    }
                     for (int c = 0; c < 3; c++) {
-                        float healed = src.data[si + c] + values[(y * w + x) * 3 + c];
+                        float healed = Transfer.srgb_to_linear(float.max(0, e[c]));
                         img.data[di + c] = img.data[di + c] * (1 - mv) + healed * mv;
                     }
                 }
