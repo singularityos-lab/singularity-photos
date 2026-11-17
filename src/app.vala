@@ -341,6 +341,7 @@ namespace Singularity.Apps.Photos {
             library_folder = GLib.File.new_for_path(
                 GLib.Environment.get_home_dir() + "/" + lib_name);
             thumb_size = settings.get_int("thumbnail-size");
+            Singularity.FormFactor.get_default().changed.connect((previous) => load_photos());
             current_view = settings.get_string("sidebar-view");
             catalog = Catalog.get_default();
             indexer = new LibraryIndexer(catalog);
@@ -870,6 +871,11 @@ namespace Singularity.Apps.Photos {
             if (online != null) online.set_viewer_open(in_viewer);
         }
 
+        private int tile_side() {
+            if (Singularity.FormFactor.current() == Singularity.FormFactorKind.TV) return int.max(thumb_size, 300);
+            return thumb_size;
+        }
+
         private void adjust_zoom(int delta) {
             if (full_viewer != null && full_viewer.visible) {
                 _viewer_zoom = (_viewer_zoom + delta / 100.0).clamp(0.20, 8.0);
@@ -1002,7 +1008,7 @@ namespace Singularity.Apps.Photos {
             box.valign = Align.START;
 
             var img = new Image();
-            img.pixel_size = thumb_size;
+            img.pixel_size = tile_side();
             img.add_css_class("photo-thumb");
 
             // Spinner overlay shown while thumbnail loads
@@ -1011,7 +1017,7 @@ namespace Singularity.Apps.Photos {
             spinner.valign = Align.CENTER;
             spinner.visible = false;
 
-            var clip = new ThumbClip(img, thumb_size, thumb_size * 3 / 4);
+            var clip = new ThumbClip(img, tile_side(), tile_side() * 3 / 4);
             var thumb_overlay = new Overlay();
             thumb_overlay.set_child(clip);
             thumb_overlay.add_overlay(spinner);
@@ -1101,9 +1107,9 @@ namespace Singularity.Apps.Photos {
             lbl.label = photo.name;
             update_cell_badges(box, photo);
             if (photo.record != null) bound_cells[photo.record.id] = box;
-            img.pixel_size = thumb_size;
+            img.pixel_size = tile_side();
             var clip = box.get_data<ThumbClip>("thumb-clip");
-            if (clip != null) clip.resize(thumb_size, thumb_size * 3 / 4);
+            if (clip != null) clip.resize(tile_side(), tile_side() * 3 / 4);
             img.set_from_icon_name("image-loading-symbolic");
             spinner.spinning = true;
             spinner.visible = true;
@@ -1111,17 +1117,17 @@ namespace Singularity.Apps.Photos {
             string path = photo.path;
             img.set_data<string>("thumb-for-path", path);
             if (photo is OnlinePhoto && online != null) {
-                online.bind_thumbnail(img, spinner, (OnlinePhoto) photo, thumb_size);
+                online.bind_thumbnail(img, spinner, (OnlinePhoto) photo, tile_side());
                 return;
             }
-            var cached = thumb_cache_get(photo, thumb_size);
+            var cached = thumb_cache_get(photo, tile_side());
             if (cached != null) {
                 img.set_from_paintable(cached);
                 spinner.spinning = false;
                 spinner.visible = false;
                 return;
             }
-            load_thumbnail_async(img, spinner, path, thumb_size, photo.variant(), photo);
+            load_thumbnail_async(img, spinner, path, tile_side(), photo.variant(), photo);
         }
 
         private Gee.HashMap<int64?, Box> bound_cells = new Gee.HashMap<int64?, Box>(id_hash, id_equal);
@@ -1441,7 +1447,7 @@ namespace Singularity.Apps.Photos {
             update_bubbles_for_viewer(true);
             load_viewer_photo();
             update_photo_actions();
-            main_window.grab_focus();
+            main_window.set_focus(null);
             if (!was_open) morph_viewer(false);
         }
 
@@ -1500,6 +1506,10 @@ namespace Singularity.Apps.Photos {
             if (full_viewer != null) full_viewer.visible = false;
             update_bubbles_for_viewer(false);
             update_photo_actions();
+            if (Singularity.FormFactor.current() == Singularity.FormFactorKind.TV
+                    && viewer_index >= 0 && viewer_index < (int) photo_store.get_n_items()) {
+                photo_grid.scroll_to(viewer_index, ListScrollFlags.FOCUS, null);
+            }
         }
 
         private Widget? grid_cell_for(int index) {
