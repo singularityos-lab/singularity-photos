@@ -341,7 +341,6 @@ namespace Singularity.Apps.Photos {
             library_folder = GLib.File.new_for_path(
                 GLib.Environment.get_home_dir() + "/" + lib_name);
             thumb_size = settings.get_int("thumbnail-size");
-            Singularity.FormFactor.get_default().changed.connect((previous) => load_photos());
             current_view = settings.get_string("sidebar-view");
             catalog = Catalog.get_default();
             indexer = new LibraryIndexer(catalog);
@@ -358,6 +357,7 @@ namespace Singularity.Apps.Photos {
             });
 
             main_window = new PhotosWindow(this);
+            main_window.form_factor_changed.connect((previous) => load_photos());
             content_overlay = main_window.content_overlay;
 
             setup_sidebar(main_window.sidebar_scroll);
@@ -872,8 +872,7 @@ namespace Singularity.Apps.Photos {
         }
 
         private int tile_side() {
-            if (Singularity.FormFactor.current() == Singularity.FormFactorKind.TV) return int.max(thumb_size, 300);
-            return thumb_size;
+            return main_window != null ? main_window.content_size(thumb_size) : thumb_size;
         }
 
         private void adjust_zoom(int delta) {
@@ -1104,6 +1103,7 @@ namespace Singularity.Apps.Photos {
 
             box.set_data<PhotoItem>("photo-item", photo);
             box.set_data<ListItem>("list-item", list_item);
+            Singularity.Focus.set_key(box, "photo:" + photo.path);
             lbl.label = photo.name;
             update_cell_badges(box, photo);
             if (photo.record != null) bound_cells[photo.record.id] = box;
@@ -1506,8 +1506,7 @@ namespace Singularity.Apps.Photos {
             if (full_viewer != null) full_viewer.visible = false;
             update_bubbles_for_viewer(false);
             update_photo_actions();
-            if (Singularity.FormFactor.current() == Singularity.FormFactorKind.TV
-                    && viewer_index >= 0 && viewer_index < (int) photo_store.get_n_items()) {
+            if (viewer_index >= 0 && viewer_index < (int) photo_store.get_n_items()) {
                 photo_grid.scroll_to(viewer_index, ListScrollFlags.FOCUS, null);
             }
         }
@@ -1570,6 +1569,7 @@ namespace Singularity.Apps.Photos {
             if (viewer_index >= (int)n) viewer_index = (int)n - 1;
 
             var photo = (PhotoItem)photo_store.get_item(viewer_index);
+            Singularity.Focus.retarget(main_window, "photo:" + photo.path);
 
             viewer_picture.remove_css_class("rotate-90");
             viewer_picture.remove_css_class("rotate-180");
@@ -1737,8 +1737,7 @@ namespace Singularity.Apps.Photos {
             main_window.add_action(view_action);
             var fullscreen = new SimpleAction.stateful("fullscreen", null, new Variant.boolean(false));
             fullscreen.activate.connect(() => {
-                if (main_window.fullscreened) main_window.unfullscreen();
-                else main_window.fullscreen();
+                main_window.toggle_fullscreen();
             });
             main_window.notify["fullscreened"].connect(() => fullscreen.set_state(new Variant.boolean(main_window.fullscreened)));
             main_window.add_action(fullscreen);
