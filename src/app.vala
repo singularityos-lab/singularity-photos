@@ -55,7 +55,6 @@ namespace Singularity.Apps.Photos {
         private LibraryFilterBar? filter_bar = null;
         private Revealer? filter_revealer = null;
         private LibraryInfoPanel? info_panel = null;
-        private Revealer? info_revealer = null;
         private MultiSelection? selection = null;
         private Box? folders_section = null;
         private Box? collections_section = null;
@@ -1881,7 +1880,7 @@ namespace Singularity.Apps.Photos {
             foreach (var b in edit_bubbles) b.visible = true;
             sidebar_before_edit = main_window.get_sidebar_visible();
             main_window.set_sidebar_visible(false);
-            main_window.side_host.visible = false;
+            main_window.allow_side(false);
             update_edit_bubbles();
             foreach (var act in edit_actions) act.set_enabled(true);
             update_photo_actions();
@@ -1903,7 +1902,7 @@ namespace Singularity.Apps.Photos {
             foreach (var b in viewer_bubbles) b.visible = full_viewer != null && full_viewer.visible;
             foreach (var act in edit_actions) act.set_enabled(false);
             main_window.set_sidebar_visible(sidebar_before_edit);
-            main_window.side_host.visible = true;
+            main_window.allow_side(true);
             host.can_target = false;
             Singularity.Motion.conceal(host, Singularity.Motion.Preset.FADE).done.connect(() => content_overlay.remove_overlay(host));
             if (changed) {
@@ -2396,15 +2395,18 @@ namespace Singularity.Apps.Photos {
 
             info_panel = new LibraryInfoPanel(catalog);
             info_panel.records_changed.connect((recs) => persist_records(recs));
-            info_revealer = new Revealer();
-            info_revealer.transition_type = RevealerTransitionType.SLIDE_LEFT;
-            info_revealer.child = info_panel;
-            main_window.side_host.append(info_revealer);
-            info_revealer.reveal_child = state_bool("show-info-panel", false);
-            info_revealer.visible = info_revealer.reveal_child;
-            info_revealer.notify["child-revealed"].connect(() => {
-                if (!info_revealer.reveal_child && !info_revealer.child_revealed) info_revealer.visible = false;
-            });
+            info_panel.hexpand = true;
+            main_window.side_host.append(info_panel);
+            main_window.side_closed_by_user.connect(() => set_state_bool("show-info-panel", false));
+            bool restore = state_bool("show-info-panel", false);
+            if (restore) {
+                main_window.want_side(true);
+                ulong restored = 0;
+                restored = main_window.stage.notify["overlay-mode"].connect(() => {
+                    if (main_window.stage.overlay_mode) main_window.want_side(false);
+                    main_window.stage.disconnect(restored);
+                });
+            }
 
             catalog.photo_changed.connect((r) => refresh_record_cell(r));
 
@@ -2574,7 +2576,7 @@ namespace Singularity.Apps.Photos {
             if (map) refresh_map();
             map_page.visible = map;
             people_view.visible = people;
-            if (compare_view == null && edit_view == null && retouch_view == null) main_window.side_host.visible = !map && !people;
+            if (compare_view == null && edit_view == null && retouch_view == null) main_window.allow_side(!map && !people);
             if (people) {
                 people_view.refresh();
                 people_view.auto_scan();
@@ -2601,16 +2603,15 @@ namespace Singularity.Apps.Photos {
         }
 
         private void toggle_info_panel() {
-            if (info_revealer == null) return;
-            bool show = !info_revealer.reveal_child;
-            if (show) info_revealer.visible = true;
-            info_revealer.reveal_child = show;
-            set_state_bool("show-info-panel", info_revealer.reveal_child);
+            if (info_panel == null) return;
+            bool show = !main_window.side_wanted;
+            main_window.want_side(show);
+            set_state_bool("show-info-panel", show);
             update_info_panel();
         }
 
         private void update_info_panel() {
-            if (info_panel == null || info_revealer == null || !info_revealer.reveal_child) return;
+            if (info_panel == null || !main_window.side_wanted) return;
             var list = new Gee.ArrayList<PhotoRecord>();
             if (full_viewer != null && full_viewer.visible) {
                 var p = current_photo();
@@ -3105,7 +3106,7 @@ namespace Singularity.Apps.Photos {
             }
             if (full_viewer != null && full_viewer.visible) hide_viewer();
             compare_view = new CompareView(catalog, recs, survey);
-            main_window.side_host.visible = false;
+            main_window.allow_side(false);
             if (filter_revealer != null) filter_revealer.visible = false;
             compare_view.finished.connect(() => close_compare());
             compare_view.records_changed.connect(() => persist_records(recs));
@@ -3120,7 +3121,7 @@ namespace Singularity.Apps.Photos {
             var v = compare_view;
             compare_view = null;
             content_overlay.remove_overlay(v);
-            main_window.side_host.visible = true;
+            main_window.allow_side(true);
             if (filter_revealer != null) filter_revealer.visible = filter_revealer.reveal_child;
             update_bubbles_for_viewer(false);
             if (_info_bubble != null) _info_bubble.visible = true;
@@ -3148,7 +3149,7 @@ namespace Singularity.Apps.Photos {
             update_bubbles_for_viewer(true);
             sidebar_before_edit = main_window.get_sidebar_visible();
             main_window.set_sidebar_visible(false);
-            main_window.side_host.visible = false;
+            main_window.allow_side(false);
             update_photo_actions();
             retouch_view.grab_focus();
         }
@@ -3161,7 +3162,7 @@ namespace Singularity.Apps.Photos {
             foreach (var b in edit_bubbles) b.visible = false;
             foreach (var b in zoom_bubbles) b.visible = true;
             main_window.set_sidebar_visible(sidebar_before_edit);
-            main_window.side_host.visible = true;
+            main_window.allow_side(true);
             update_bubbles_for_viewer(full_viewer != null && full_viewer.visible);
             host.can_target = false;
             Singularity.Motion.conceal(host, Singularity.Motion.Preset.FADE).done.connect(() => content_overlay.remove_overlay(host));

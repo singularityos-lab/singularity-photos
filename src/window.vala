@@ -22,7 +22,7 @@ namespace Singularity.Apps {
         public Overlay         content_overlay;
         public ScrolledWindow  grid_scroll;
         public Box             side_host;
-        public Box             stage_row;
+        public Singularity.Widgets.DetailPane stage;
         public Photos.MediaBin media_bin;
 
         public PhotosWindow(Gtk.Application app) {
@@ -42,15 +42,37 @@ namespace Singularity.Apps {
             search_host = media_bin.filter_host;
             content_overlay = media_bin.overlay;
             grid_scroll = media_bin.scroller;
-            stage_row = new Box(Orientation.HORIZONTAL, 0);
-            stage_row.hexpand = true;
-            stage_row.vexpand = true;
-            stage_row.append(media_bin);
+            stage = new Singularity.Widgets.DetailPane(media_bin);
+            stage.hexpand = true;
+            stage.vexpand = true;
+            stage.panel_width = 340;
             side_host = new Box(Orientation.HORIZONTAL, 0);
-            stage_row.append(side_host);
-            content_box.append(stage_row);
+            stage.set_panel(side_host);
+            stage.attach_back_bubble(this);
+            stage.panel_closed.connect(() => {
+                if (side_wanted && side_allowed) {
+                    side_wanted = false;
+                    side_closed_by_user();
+                }
+            });
+            content_box.append(stage);
 
             set_content(content_box);
+        }
+
+        public bool side_wanted { get; private set; default = false; }
+        private bool side_allowed = true;
+
+        public signal void side_closed_by_user();
+
+        public void allow_side(bool allowed) {
+            side_allowed = allowed;
+            stage.reveal_panel = side_allowed && side_wanted;
+        }
+
+        public void want_side(bool wanted) {
+            side_wanted = wanted;
+            stage.reveal_panel = side_allowed && side_wanted;
         }
     }
 }
