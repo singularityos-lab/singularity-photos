@@ -7,7 +7,7 @@ using Singularity.Widgets;
 
 namespace Singularity.Apps.Photos {
 
-    public class PhotosApp : Singularity.Application, Singularity.Migration.Migratable {
+    public class PhotosApp : Singularity.Application, Singularity.Migration.Migratable, Singularity.Startup.Bootable {
         private Singularity.Apps.PhotosWindow main_window;
         private GLib.Settings settings;
         private GLib.ListStore photo_store;
@@ -330,35 +330,106 @@ namespace Singularity.Apps.Photos {
             set_accels_for_action("win.merge::panorama", { "<Control>m" });
         }
 
-        protected override void activate() {
-            if (main_window != null) {
-                main_window.present();
-                return;
+        public Singularity.Startup.Plan build_plan(Singularity.Startup.Request request) {
+            var plan = new Singularity.Startup.Plan();
+            plan.version = "photos-1";
+            plan.main("library", Singularity.Startup.Category.PREPARE, (c) => prepare_library());
+            plan.main("catalog-open", Singularity.Startup.Category.PREPARE, (c) => open_catalog());
+            var read = plan.worker("catalog-read", Singularity.Startup.Category.CONTENT, (cancellable) => {
+                return Catalog.opened().read_all();
+            }, (c, snapshot) => {
+                catalog.adopt((CatalogSnapshot) snapshot);
+            }).depends_on("catalog-open").heavy_io();
+            if (request.kind == Singularity.Startup.RequestKind.SERVICE) {
+                plan.main("catalog-ready", Singularity.Startup.Category.CONTENT, (c) => connect_catalog())
+                    .depends_on("library").depends_on("catalog-read")
+                    .reaches(Singularity.Startup.Milestone.SHELL_READY)
+                    .reaches(Singularity.Startup.Milestone.CONTENT_READY)
+                    .reaches(Singularity.Startup.Milestone.INTERACTIVE);
+                return plan;
             }
-            build_window();
+            read.depends_on("library");
+            plan.main("window", Singularity.Startup.Category.SHELL, (c) => {
+                if (main_window == null) build_shell();
+                c.window = main_window;
+                main_window.present();
+            }).depends_on("library").depends_on("catalog-open").reaches(Singularity.Startup.Milestone.SHELL_READY);
+            var content = plan.main("content", Singularity.Startup.Category.CONTENT, (c) => {
+                connect_catalog();
+                fill_content();
+            }).depends_on("window").depends_on("catalog-read").reaches(Singularity.Startup.Milestone.CONTENT_READY);
+            if (request.kind == Singularity.Startup.RequestKind.OPEN && request.files().length > 0) {
+                var files = request.files();
+                plan.main("open-file", Singularity.Startup.Category.CONTENT, (c) => open_files(files))
+                    .depends_on("content").reaches(Singularity.Startup.Milestone.INTERACTIVE);
+            } else {
+                content.reaches(Singularity.Startup.Milestone.INTERACTIVE);
+            }
+            plan.main("library-monitor", Singularity.Startup.Category.DEFERRED, (c) => setup_library_monitor()).depends_on("content");
+            plan.main("index", Singularity.Startup.Category.DEFERRED, (c) => indexer.scan(library_roots())).depends_on("content");
+            return plan;
+        }
+
+        public void handle_request(Singularity.Startup.Request request) {
+            if (main_window == null) {
+                build_window();
+            }
             main_window.present();
+            if (request.kind == Singularity.Startup.RequestKind.OPEN) open_files(request.files());
+        }
+
+        private bool library_prepared = false;
+        private bool catalog_connected = false;
+
+        private void prepare_library() {
+            if (library_prepared) return;
+            library_prepared = true;
+            string lib_name = settings.get_string("library-path");
+            library_folder = GLib.File.new_for_path(
+                GLib.Environment.get_home_dir() + "/" + lib_name);
+            thumb_size = settings.get_int("thumbnail-size");
+            LibraryStyle.install();
+            filter.sort_key = state_string("library-sort", "captured");
+            filter.ascending = state_bool("library-sort-ascending", false);
+            filter.collapse_stacks = state_bool("collapse-stacks", true);
+        }
+
+        private void open_catalog() {
+            if (catalog != null) return;
+            catalog = Catalog.opened();
+            indexer = new LibraryIndexer(catalog);
+        }
+
+        private void connect_catalog() {
+            if (catalog_connected) return;
+            catalog_connected = true;
+            catalog.changed.connect(schedule_catalog_refresh);
+            catalog.photo_changed.connect((r) => refresh_record_cell(r));
+            indexer.finished.connect(() => {
+                update_empty_page();
+                if (filter_bar != null) filter_bar.refresh_values();
+                if (people_view != null) people_view.auto_scan();
+            });
         }
 
         private void build_window() {
-            if (catalog == null) {
-                string lib_name = settings.get_string("library-path");
-                library_folder = GLib.File.new_for_path(
-                    GLib.Environment.get_home_dir() + "/" + lib_name);
-                thumb_size = settings.get_int("thumbnail-size");
-                catalog = Catalog.get_default();
-                indexer = new LibraryIndexer(catalog);
-                LibraryStyle.install();
-                filter.sort_key = state_string("library-sort", "captured");
-                filter.ascending = state_bool("library-sort-ascending", false);
-                filter.collapse_stacks = state_bool("collapse-stacks", true);
-                catalog.changed.connect(schedule_catalog_refresh);
-                catalog.photo_changed.connect((r) => refresh_record_cell(r));
-                indexer.finished.connect(() => {
-                    update_empty_page();
-                    if (filter_bar != null) filter_bar.refresh_values();
-                    if (people_view != null) people_view.auto_scan();
-                });
-            }
+            prepare_library();
+            open_catalog();
+            if (!catalog.loaded) catalog.adopt(catalog.read_all());
+            connect_catalog();
+            build_shell();
+            fill_content();
+            setup_library_monitor();
+            indexer.scan(library_roots());
+        }
+
+        private void fill_content() {
+            rebuild_dynamic_sidebar();
+            load_photos();
+            update_empty_page();
+        }
+
+        private void build_shell() {
             current_view = settings.get_string("sidebar-view");
             if (!view_is_valid(current_view)) current_view = "library";
 
@@ -375,8 +446,6 @@ namespace Singularity.Apps.Photos {
             setup_window_actions();
             setup_library_panels();
             setup_library_actions();
-            load_photos();
-            indexer.scan(library_roots());
 
             main_window.close_request.connect(() => {
                 if (lib_monitor != null) { lib_monitor.cancel(); lib_monitor = null; }
@@ -516,8 +585,7 @@ namespace Singularity.Apps.Photos {
             return main_window;
         }
 
-        protected override void open(GLib.File[] files, string hint) {
-            activate();
+        private void open_files(GLib.File[] files) {
             if (files.length == 0) return;
             var target = files[0];
             var parent = target.get_parent();
@@ -2347,7 +2415,7 @@ namespace Singularity.Apps.Photos {
         }
 
         private void update_empty_page() {
-            if (empty_page == null) return;
+            if (empty_page == null || !catalog.loaded) return;
             bool empty = photo_store.get_n_items() == 0;
             bool special = current_view == "map" || current_view == "people";
             bool filtering = search_query != "" || filter.is_active();

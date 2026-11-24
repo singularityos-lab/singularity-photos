@@ -5,6 +5,18 @@ namespace Singularity.Apps.Photos {
         QUERY
     }
 
+    public class CatalogSnapshot : Object {
+        public Gee.HashMap<int64?, PhotoRecord> photos = new Gee.HashMap<int64?, PhotoRecord>(id_hash, id_equal);
+        public Gee.HashMap<string, PhotoRecord> by_path = new Gee.HashMap<string, PhotoRecord>();
+        public Gee.HashMap<int64?, FolderRecord> folders = new Gee.HashMap<int64?, FolderRecord>(id_hash, id_equal);
+        public Gee.HashMap<int64?, CollectionRecord> collections = new Gee.HashMap<int64?, CollectionRecord>(id_hash, id_equal);
+        public Gee.HashMap<int64?, Gee.ArrayList<int64?>> members = new Gee.HashMap<int64?, Gee.ArrayList<int64?>>(id_hash, id_equal);
+        public Gee.HashMap<int64?, KeywordRecord> keywords = new Gee.HashMap<int64?, KeywordRecord>(id_hash, id_equal);
+        public Gee.HashMap<int64?, KeywordSet> keyword_sets = new Gee.HashMap<int64?, KeywordSet>(id_hash, id_equal);
+        public Gee.HashMap<int64?, FaceRecord> faces = new Gee.HashMap<int64?, FaceRecord>(id_hash, id_equal);
+        public Gee.HashMap<int64?, PersonRecord> people = new Gee.HashMap<int64?, PersonRecord>(id_hash, id_equal);
+    }
+
     public class Catalog : Object {
         public const int SCHEMA_VERSION = 1;
 
@@ -23,6 +35,8 @@ namespace Singularity.Apps.Photos {
         public Gee.HashMap<int64?, FaceRecord> faces = new Gee.HashMap<int64?, FaceRecord>(id_hash, id_equal);
         public Gee.HashMap<int64?, PersonRecord> people = new Gee.HashMap<int64?, PersonRecord>(id_hash, id_equal);
 
+        public bool loaded { get; private set; default = false; }
+
         public signal void changed();
         public signal void photo_changed(PhotoRecord record);
 
@@ -36,6 +50,12 @@ namespace Singularity.Apps.Photos {
         }
 
         public static Catalog get_default() {
+            var c = opened();
+            if (!c.loaded) c.adopt(c.read_all());
+            return c;
+        }
+
+        public static Catalog opened() {
             if (instance == null) {
                 try {
                     instance = new Catalog(default_path());
@@ -60,7 +80,6 @@ namespace Singularity.Apps.Photos {
             exec("PRAGMA synchronous=NORMAL");
             exec("PRAGMA foreign_keys=OFF");
             create_schema();
-            load();
         }
 
         private void exec(string sql) throws Error {
@@ -136,7 +155,8 @@ namespace Singularity.Apps.Photos {
             st.step();
         }
 
-        private void load() {
+        public CatalogSnapshot read_all() {
+            var s = new CatalogSnapshot();
             var st = prepare("SELECT " + PHOTO_COLUMNS + " FROM photos");
             while (st.step() == Sqlite.ROW) {
                 var r = new PhotoRecord();
@@ -177,8 +197,8 @@ namespace Singularity.Apps.Photos {
                 r.country = st.column_text(c++) ?? "";
                 r.meta_json = st.column_text(c++) ?? "";
                 r.meta_mtime = st.column_int64(c++);
-                photos[r.id] = r;
-                if (r.master_id == 0) by_path[r.path] = r;
+                s.photos[r.id] = r;
+                if (r.master_id == 0) s.by_path[r.path] = r;
             }
             st = prepare("SELECT id, path, parent_id FROM folders");
             while (st.step() == Sqlite.ROW) {
@@ -186,7 +206,7 @@ namespace Singularity.Apps.Photos {
                 f.id = st.column_int64(0);
                 f.path = st.column_text(1) ?? "";
                 f.parent_id = st.column_int64(2);
-                folders[f.id] = f;
+                s.folders[f.id] = f;
             }
             st = prepare("SELECT id, name, kind, parent_id, rules, position FROM collections");
             while (st.step() == Sqlite.ROW) {
@@ -197,12 +217,12 @@ namespace Singularity.Apps.Photos {
                 c.parent_id = st.column_int64(3);
                 c.rules = st.column_text(4) ?? "";
                 c.position = st.column_int(5);
-                collections[c.id] = c;
-                members[c.id] = new Gee.ArrayList<int64?>();
+                s.collections[c.id] = c;
+                s.members[c.id] = new Gee.ArrayList<int64?>();
             }
             st = prepare("SELECT collection_id, photo_id FROM collection_photos ORDER BY position");
             while (st.step() == Sqlite.ROW) {
-                var list = members[st.column_int64(0)];
+                var list = s.members[st.column_int64(0)];
                 if (list != null) list.add(st.column_int64(1));
             }
             st = prepare("SELECT id, name, parent_id, synonyms FROM keywords");
@@ -212,11 +232,11 @@ namespace Singularity.Apps.Photos {
                 k.name = st.column_text(1) ?? "";
                 k.parent_id = st.column_int64(2);
                 k.synonyms = st.column_text(3) ?? "";
-                keywords[k.id] = k;
+                s.keywords[k.id] = k;
             }
             st = prepare("SELECT photo_id, keyword_id FROM photo_keywords");
             while (st.step() == Sqlite.ROW) {
-                var r = photos[st.column_int64(0)];
+                var r = s.photos[st.column_int64(0)];
                 if (r != null) r.keywords.add(st.column_int64(1));
             }
             st = prepare("SELECT id, name, keywords FROM keyword_sets");
@@ -225,14 +245,14 @@ namespace Singularity.Apps.Photos {
                 ks.id = st.column_int64(0);
                 ks.name = st.column_text(1) ?? "";
                 ks.keywords = (st.column_text(2) ?? "").split("\n");
-                keyword_sets[ks.id] = ks;
+                s.keyword_sets[ks.id] = ks;
             }
             st = prepare("SELECT id, name FROM people");
             while (st.step() == Sqlite.ROW) {
                 var p = new PersonRecord();
                 p.id = st.column_int64(0);
                 p.name = st.column_text(1) ?? "";
-                people[p.id] = p;
+                s.people[p.id] = p;
             }
             st = prepare("SELECT id, photo_id, x, y, w, h, descriptor, person_id, state FROM faces");
             while (st.step() == Sqlite.ROW) {
@@ -246,8 +266,24 @@ namespace Singularity.Apps.Photos {
                 f.descriptor = decode_floats(st.column_text(6) ?? "");
                 f.person_id = st.column_int64(7);
                 f.state = st.column_int(8);
-                faces[f.id] = f;
+                s.faces[f.id] = f;
             }
+            return s;
+        }
+
+        public void adopt(CatalogSnapshot s) {
+            photos = s.photos;
+            by_path = s.by_path;
+            folders = s.folders;
+            collections = s.collections;
+            members = s.members;
+            keywords = s.keywords;
+            keyword_sets = s.keyword_sets;
+            faces = s.faces;
+            people = s.people;
+            copies_index = null;
+            loaded = true;
+            changed();
         }
 
         public void begin() {
@@ -349,6 +385,7 @@ namespace Singularity.Apps.Photos {
             st.step();
             r.id = db.last_insert_rowid();
             photos[r.id] = r;
+            copies_index = null;
             if (r.master_id == 0) by_path[r.path] = r;
             save(r);
         }
@@ -416,6 +453,7 @@ namespace Singularity.Apps.Photos {
                 st.step();
             }
             photos.unset(r.id);
+            copies_index = null;
             if (by_path[r.path] == r) by_path.unset(r.path);
             foreach (var list in members.values) list.remove(r.id);
             var drop = new Gee.ArrayList<int64?>();
@@ -566,9 +604,24 @@ namespace Singularity.Apps.Photos {
             return r;
         }
 
+        private Gee.HashMap<int64?, Gee.ArrayList<PhotoRecord>>? copies_index = null;
+
         public Gee.ArrayList<PhotoRecord> virtual_copies(PhotoRecord master) {
+            if (copies_index == null) {
+                copies_index = new Gee.HashMap<int64?, Gee.ArrayList<PhotoRecord>>(id_hash, id_equal);
+                foreach (var p in photos.values) {
+                    if (p.master_id == 0) continue;
+                    var own = copies_index[p.master_id];
+                    if (own == null) {
+                        own = new Gee.ArrayList<PhotoRecord>();
+                        copies_index[p.master_id] = own;
+                    }
+                    own.add(p);
+                }
+            }
             var list = new Gee.ArrayList<PhotoRecord>();
-            foreach (var p in photos.values) if (p.master_id == master.id) list.add(p);
+            var own = copies_index[master.id];
+            if (own != null) list.add_all(own);
             return list;
         }
 
