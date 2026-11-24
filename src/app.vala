@@ -7,7 +7,7 @@ using Singularity.Widgets;
 
 namespace Singularity.Apps.Photos {
 
-    public class PhotosApp : Singularity.Application {
+    public class PhotosApp : Singularity.Application, Singularity.Migration.Migratable {
         private Singularity.Apps.PhotosWindow main_window;
         private GLib.Settings settings;
         private GLib.ListStore photo_store;
@@ -335,25 +335,32 @@ namespace Singularity.Apps.Photos {
                 main_window.present();
                 return;
             }
+            build_window();
+            main_window.present();
+        }
 
-            string lib_name = settings.get_string("library-path");
-            library_folder = GLib.File.new_for_path(
-                GLib.Environment.get_home_dir() + "/" + lib_name);
-            thumb_size = settings.get_int("thumbnail-size");
+        private void build_window() {
+            if (catalog == null) {
+                string lib_name = settings.get_string("library-path");
+                library_folder = GLib.File.new_for_path(
+                    GLib.Environment.get_home_dir() + "/" + lib_name);
+                thumb_size = settings.get_int("thumbnail-size");
+                catalog = Catalog.get_default();
+                indexer = new LibraryIndexer(catalog);
+                LibraryStyle.install();
+                filter.sort_key = state_string("library-sort", "captured");
+                filter.ascending = state_bool("library-sort-ascending", false);
+                filter.collapse_stacks = state_bool("collapse-stacks", true);
+                catalog.changed.connect(schedule_catalog_refresh);
+                catalog.photo_changed.connect((r) => refresh_record_cell(r));
+                indexer.finished.connect(() => {
+                    update_empty_page();
+                    if (filter_bar != null) filter_bar.refresh_values();
+                    if (people_view != null) people_view.auto_scan();
+                });
+            }
             current_view = settings.get_string("sidebar-view");
-            catalog = Catalog.get_default();
-            indexer = new LibraryIndexer(catalog);
-            LibraryStyle.install();
-            filter.sort_key = state_string("library-sort", "captured");
-            filter.ascending = state_bool("library-sort-ascending", false);
-            filter.collapse_stacks = state_bool("collapse-stacks", true);
             if (!view_is_valid(current_view)) current_view = "library";
-            catalog.changed.connect(schedule_catalog_refresh);
-            indexer.finished.connect(() => {
-                update_empty_page();
-                if (filter_bar != null) filter_bar.refresh_values();
-                if (people_view != null) people_view.auto_scan();
-            });
 
             main_window = new PhotosWindow(this);
             main_window.form_factor_changed.connect((previous) => load_photos());
@@ -371,12 +378,142 @@ namespace Singularity.Apps.Photos {
             load_photos();
             indexer.scan(library_roots());
 
-            main_window.present();
             main_window.close_request.connect(() => {
                 if (lib_monitor != null) { lib_monitor.cancel(); lib_monitor = null; }
                 indexer.cancel();
                 return false;
             });
+        }
+
+        private void forget_window() {
+            cancel_viewer_load();
+            if (lib_monitor != null) { lib_monitor.cancel(); lib_monitor = null; }
+            if (main_window != null) main_window.destroy();
+            full_viewer = null;
+            viewer_picture = null;
+            viewer_filename_label = null;
+            viewer_info_label = null;
+            viewer_fav_btn = null;
+            viewer_index = 0;
+            viewer_rotation = 0;
+            _viewer_zoom = 1.0;
+            viewer_closing = false;
+            live_text = null;
+            viewer_spinner = null;
+            video_view = null;
+            live_btn = null;
+            edit_view = null;
+            edit_host = null;
+            edit_bubbles = {};
+            revert_bubble = null;
+            zoom_bubbles = {};
+            viewer_bubbles = {};
+            edit_actions = {};
+            edit_action = null;
+            empty_page = null;
+            welcome_page = null;
+            section_pages.clear();
+            online = null;
+            filter_bar = null;
+            filter_revealer = null;
+            info_panel = null;
+            selection = null;
+            folders_section = null;
+            collections_section = null;
+            sidebar_signature = "-";
+            place_records = null;
+            photo_map = null;
+            map_page = null;
+            map_intro = null;
+            map_status = null;
+            people_view = null;
+            compare_view = null;
+            retouch_view = null;
+            retouch_host = null;
+            _filter_bubble = null;
+            _info_bubble = null;
+            _sidebar_bubble = null;
+            _search_bubble = null;
+            _import_bubble = null;
+            library_actions.clear();
+            bound_cells.clear();
+            sidebar_rows.clear();
+            view_action = null;
+            photo_actions = {};
+            viewer_actions = {};
+            trash_action = null;
+            open_photo_action = null;
+            favorite_action = null;
+            search_query = "";
+            main_window = null;
+        }
+
+        private signal void viewer_loaded();
+
+        public void prepare_move() throws Singularity.Migration.MigrationError {
+            if (edit_view != null || retouch_view != null) throw new Singularity.Migration.MigrationError.UNSUPPORTED(_("Finish editing the photo before moving Photos"));
+            if (compare_view != null) throw new Singularity.Migration.MigrationError.UNSUPPORTED(_("Close the comparison before moving Photos"));
+            foreach (var w in get_windows()) {
+                if (w is MarkupWindow) throw new Singularity.Migration.MigrationError.UNSUPPORTED(_("Finish the markup before moving Photos"));
+            }
+        }
+
+        public Variant save_model() {
+            return new VariantDict().end();
+        }
+
+        public async void restore_model(Variant model) throws Error {
+        }
+
+        public string window_kind(Gtk.Window w) {
+            return (w is PhotosWindow) ? "photos" : "";
+        }
+
+        public Variant save_window(Gtk.Window w) {
+            var d = new VariantDict();
+            d.insert_value("view", new Variant.string(current_view));
+            d.insert_value("search", new Variant.string(search_query));
+            var photo = full_viewer != null && full_viewer.visible ? current_photo() : null;
+            if (photo != null && !(photo is OnlinePhoto)) {
+                d.insert_value("photo", new Variant.string(Singularity.Migration.portable_path(photo.file)));
+                d.insert_value("variant", new Variant.string(photo.variant()));
+                d.insert_value("rotation", new Variant.int32(viewer_rotation));
+                d.insert_value("zoom", new Variant.double(_viewer_zoom));
+            }
+            return d.end();
+        }
+
+        public async Gtk.Window? rebuild_window(string kind, Variant data) throws Error {
+            if (kind != "photos") return null;
+            forget_window();
+            build_window();
+            var d = new VariantDict(data);
+            var view = d.lookup_value("view", VariantType.STRING);
+            var query = d.lookup_value("search", VariantType.STRING);
+            if (query != null) search_query = query.get_string();
+            if (view != null && view_is_valid(view.get_string()) && view.get_string() != current_view) activate_view(view.get_string());
+            else load_photos();
+            var path = d.lookup_value("photo", VariantType.STRING);
+            if (path == null) return main_window;
+            var file = Singularity.Migration.local_file(path.get_string());
+            var variant = d.lookup_value("variant", VariantType.STRING);
+            for (uint i = 0; i < photo_store.get_n_items(); i++) {
+                var pi = (PhotoItem) photo_store.get_item(i);
+                if (!pi.file.equal(file) || (variant != null && pi.variant() != variant.get_string())) continue;
+                ulong id = viewer_loaded.connect(() => rebuild_window.callback());
+                show_viewer((int) i);
+                if (viewer_spinner_id != 0) yield;
+                disconnect(id);
+                var rotation = d.lookup_value("rotation", VariantType.INT32);
+                if (rotation != null) rotate_current(rotation.get_int32());
+                var zoom = d.lookup_value("zoom", VariantType.DOUBLE);
+                if (zoom != null) {
+                    _viewer_zoom = zoom.get_double();
+                    _apply_viewer_zoom();
+                }
+                break;
+            }
+            return main_window;
         }
 
         protected override void open(GLib.File[] files, string hint) {
@@ -1642,6 +1779,7 @@ namespace Singularity.Apps.Photos {
                     if (serial != viewer_load_serial) return;
                     cancel_viewer_load();
                     viewer_picture.set_paintable(texture);
+                    viewer_loaded();
                 };
             });
         }
@@ -2408,7 +2546,6 @@ namespace Singularity.Apps.Photos {
                 });
             }
 
-            catalog.photo_changed.connect((r) => refresh_record_cell(r));
 
             map_page = new Box(Orientation.VERTICAL, 0);
             map_page.hexpand = true;
